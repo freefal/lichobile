@@ -9,7 +9,7 @@ import { toggleGameBookmark } from '../../../xhr';
 import session from '../../../session';
 import m from 'mithril';
 import ViewOnlyBoard from '../../shared/ViewOnlyBoard';
-import infinite from 'mithril-infinite';
+import infinite from '../../../lib/mithril-infinite';
 
 export default function view(ctrl) {
   const header = utils.partialf(headerWidget, null,

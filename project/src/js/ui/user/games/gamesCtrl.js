@@ -42,8 +42,10 @@ export default function controller() {
   });
 
   function getPageData(page) {
-    console.log(page);
-    return xhr.games(userId, currentFilter(), page, true);
+    return xhr.games(userId, currentFilter(), page, false).then(data => {
+      m.redraw();
+      return data;
+    });
   }
 
   function onFilterChange(e) {
