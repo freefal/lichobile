@@ -9,6 +9,7 @@ import { toggleGameBookmark } from '../../../xhr';
 import session from '../../../session';
 import m from 'mithril';
 import ViewOnlyBoard from '../../shared/ViewOnlyBoard';
+import infinite from 'mithril-infinite';
 
 export default function view(ctrl) {
   const header = utils.partialf(headerWidget, null,
@@ -30,7 +31,9 @@ export default function view(ctrl) {
             })}
           </select>
         </div>
-        {renderAllGames(ctrl)}
+        <div className="scrollViewWrapper">
+          {renderAllGames(ctrl)}
+        </div>
       </div>
     );
   }
@@ -38,29 +41,7 @@ export default function view(ctrl) {
   return layout.free(header, renderBody, empty, empty);
 }
 
-function renderAllGames(ctrl) {
-  return (
-    <div className="scroller games" config={ctrl.scrollerConfig}>
-      <ul className="userGames">
-        { ctrl.games().map((g, i) => renderGame(ctrl, g, i, ctrl.userId)) }
-        {ctrl.isLoadingNextPage() ?
-        <li className="list_item loadingNext">loading...</li> : null
-        }
-      </ul>
-    </div>
-  );
-}
-
-function bookmarkAction(ctrl, id, index) {
-  const longAction = () => window.plugins.toast.show(i18n('bookmarkThisGame'), 'short', 'top');
-  return helper.ontouchY(() => {
-    toggleGameBookmark(id).then(() => {
-      ctrl.toggleBookmark(index);
-    }, err => utils.handleXhrError(err));
-  }, longAction);
-}
-
-function renderGame(ctrl, g, index, userId) {
+function renderGame(ctrl, g, index) {
   const wideScreen = helper.isWideScreen();
   const time = gameApi.time(g);
   const mode = g.rated ? i18n('rated') : i18n('casual');
@@ -69,7 +50,7 @@ function renderGame(ctrl, g, index, userId) {
   const status = gameStatus.toLabel(g.status.name, g.winner, g.variant.key) +
     (g.winner ? '. ' + i18n(g.winner === 'white' ? 'whiteIsVictorious' : 'blackIsVictorious') + '.' : '');
   const icon = utils.gameIcon(g.perf) || '';
-  const userColor = g.players.white.userId === userId ? 'white' : 'black';
+  const userColor = g.players.white.userId === ctrl.userId ? 'white' : 'black';
   const evenOrOdd = index % 2 === 0 ? 'even' : 'odd';
   const star = g.bookmarked ? 't' : 's';
 
@@ -101,6 +82,31 @@ function renderGame(ctrl, g, index, userId) {
       </div>
     </li>
   );
+}
+
+function renderAllGames(ctrl) {
+
+  return m.component(infinite, {
+    maxPages: 40,
+    pageData: ctrl.getPageData,
+    item: function(g, opts, index) {
+      return renderGame(ctrl, g, index);
+    },
+    processPageData: function(data, opts) {
+      return data && data.paginator.currentPageResults.map((g, index) => {
+        return opts.item(g, opts, index);
+      });
+    }
+  });
+}
+
+function bookmarkAction(ctrl, id, index) {
+  const longAction = () => window.plugins.toast.show(i18n('bookmarkThisGame'), 'short', 'top');
+  return helper.ontouchY(() => {
+    toggleGameBookmark(id).then(() => {
+      ctrl.toggleBookmark(index);
+    }, err => utils.handleXhrError(err));
+  }, longAction);
 }
 
 function renderPlayer(players, color) {
