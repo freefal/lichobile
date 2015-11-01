@@ -31,9 +31,7 @@ export default function view(ctrl) {
             })}
           </select>
         </div>
-        <div className="scrollViewWrapper">
-          {renderAllGames(ctrl)}
-        </div>
+        {renderAllGames(ctrl)}
       </div>
     );
   }
