@@ -55,7 +55,7 @@ function renderGame(ctrl, g, index) {
   return (
     <li className={`list_item userGame ${evenOrOdd}`}>
       { session.isConnected() ?
-        <button className="iconStar" data-icon={star} config={bookmarkAction(ctrl, g.id, index)} /> : null
+        <button className="iconStar" data-icon={star} config={bookmarkAction(ctrl, g.id)} /> : null
       }
       <div className="nav" config={helper.ontouchY(() => m.route(`/game/${g.id}/${userColor}`))}>
         <span className="iconGame" data-icon={icon} />
@@ -85,24 +85,24 @@ function renderGame(ctrl, g, index) {
 function renderAllGames(ctrl) {
 
   return m.component(infinite, {
-    maxPages: 40,
+    maxPages: 39,
     pageData: ctrl.getPageData,
     item: function(g, opts, index) {
       return renderGame(ctrl, g, index);
     },
     processPageData: function(data, opts) {
       return data && data.paginator.currentPageResults.map((g, index) => {
-        return opts.item(g, opts, index);
+        return opts.item(g, opts, data.paginator.currentPage + index);
       });
     }
   });
 }
 
-function bookmarkAction(ctrl, id, index) {
+function bookmarkAction(ctrl, id) {
   const longAction = () => window.plugins.toast.show(i18n('bookmarkThisGame'), 'short', 'top');
   return helper.ontouchY(() => {
     toggleGameBookmark(id).then(() => {
-      ctrl.toggleBookmark(index);
+      ctrl.toggleBookmark(id);
     }, err => utils.handleXhrError(err));
   }, longAction);
 }

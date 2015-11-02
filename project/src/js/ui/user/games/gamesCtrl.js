@@ -16,6 +16,7 @@ const filters = {
 export default function controller() {
   const userId = m.route.param('id');
   const user = m.prop();
+  const games = m.prop([]);
   const availableFilters = m.prop([]);
   const currentFilter = m.prop(m.route.param('filter') || 'all');
 
@@ -43,6 +44,7 @@ export default function controller() {
 
   function getPageData(page) {
     return xhr.games(userId, currentFilter(), page, false).then(data => {
+      games(games().concat(data.paginator.currentPageResults));
       m.redraw();
       return data;
     });
@@ -52,8 +54,9 @@ export default function controller() {
     currentFilter(e.target.value);
   }
 
-  function toggleBookmark(index) {
-    // games()[index].bookmarked = !games()[index].bookmarked;
+  function toggleBookmark(id) {
+    const game = games().find(g => g.id === id);
+    game.bookmarked = !game.bookmarked;
   }
 
   return {

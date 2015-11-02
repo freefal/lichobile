@@ -203,20 +203,12 @@ infinite.view = (ctrl, opts) => {
   const isLastPageVisible = opts.maxPages ? infinite.isPageInViewport(opts.maxPages, opts.axis, state, ctrl.scrollView) : true;
 
   if (ctrl.scrollView) {
-    // in case the screen size was changed, reset preloadSlots
-    const boundingClientRect = ctrl.scrollView.getBoundingClientRect();
-    ctrl.boundingClientRect = ctrl.boundingClientRect || boundingClientRect;
-    if ((boundingClientRect.width !== ctrl.boundingClientRect.width) || (boundingClientRect.height !== ctrl.boundingClientRect.height)) {
-      ctrl.preloadSlots = opts.preloadPages || 1;
-    }
-    ctrl.boundingClientRect = boundingClientRect;
-
     // calculate if we have room to load more
     if (contentSize === 0) {
       requestAnimationFrame(() => {
         m.redraw();
       });
-    } else if (contentSize > 0 && contentSize < boundingClientRect.height) {
+    } else if (contentSize > 0 && contentSize < ctrl.boundingClientRect.height) {
       ctrl.preloadSlots++;
       requestAnimationFrame(() => {
         m.redraw();
@@ -235,6 +227,16 @@ infinite.view = (ctrl, opts) => {
         ctrl.scrollView = el;
       }
       ctrl.scrollView.className = classList.join(' ');
+
+      const onresize = function() {
+        const boundingClientRect = ctrl.scrollView.getBoundingClientRect();
+        if ((boundingClientRect.width !== ctrl.boundingClientRect.width) || (boundingClientRect.height !== ctrl.boundingClientRect.height)) {
+          ctrl.preloadSlots = opts.preloadPages || 1;
+        }
+        ctrl.boundingClientRect = boundingClientRect;
+      };
+      // intended for mobile only since resize calls are not debounced
+      window.addEventListener('resize', onresize);
 
       const handleScroll = () => {
         ctrl.isScrolling = true;
@@ -260,6 +262,7 @@ infinite.view = (ctrl, opts) => {
       ctrl.scrollView.addEventListener('scroll', handleScroll);
       context.onunload = () => {
         ctrl.scrollView.removeEventListener('scroll', handleScroll);
+        window.removeEventListener('resize', onresize);
       };
     }
   }, m('.scroll-content', {
