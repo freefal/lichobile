@@ -1,6 +1,6 @@
 import last from 'lodash/array/last';
 import chessground from 'chessground';
-import { partialf } from '../../utils';
+import { handleXhrError } from '../../utils';
 import data from './data';
 import chess from './chess';
 import puzzle from './puzzle';
@@ -21,12 +21,34 @@ export default function ctrl() {
 
   this.menu = menu.controller(this);
 
+  this.vm = {
+    loading: false
+  };
+
+  var showLoading = function() {
+    this.vm.loading = true;
+    m.redraw();
+  }.bind(this);
+
+  var onXhrSuccess = function(res) {
+    this.vm.loading = false;
+    return res;
+  }.bind(this);
+
+  var onXhrError = function(res) {
+    this.vm.loading = false;
+    handleXhrError(res);
+    throw res;
+  }.bind(this);
+
   var attempt = function(winFlag) {
+    showLoading();
     xhr.attempt(this.data.puzzle.id, this.data.startedAt, winFlag)
-      .then(function(cfg) {
-        cfg.progress = this.data.progress;
-        this.reload(cfg);
-      }.bind(this));
+    .then(onXhrSuccess, onXhrError)
+    .then(cfg => {
+      cfg.progress = this.data.progress;
+      this.reload(cfg);
+    });
   }.bind(this);
 
   var userMove = function(orig, dest) {
@@ -38,7 +60,7 @@ export default function ctrl() {
     m.startComputation();
     switch (newLines) {
       case 'retry':
-        setTimeout(partialf(this.revert, this.data.puzzle.id), 500);
+        setTimeout(this.revert.bind(this, this.data.puzzle.id), 500);
         this.data.comment = 'retry';
         break;
       case 'fail':
@@ -57,7 +79,7 @@ export default function ctrl() {
             this.chessground.stop();
             attempt(true);
           }.bind(this), 300);
-        } else setTimeout(partialf(this.playOpponentNextMove, this.data.puzzle.id), 1000);
+        } else setTimeout(this.playOpponentNextMove.bind(this, this.data.puzzle.id), 1000);
         break;
     }
     m.endComputation(); // give feedback ASAP, don't wait for delayed action
@@ -119,7 +141,7 @@ export default function ctrl() {
     var move = puzzle.getOpponentNextMove(this.data);
     this.playOpponentMove(puzzle.str2move(move));
     this.data.progress.push(move);
-    if (puzzle.getCurrentLines(this.data) == 'win')
+    if (puzzle.getCurrentLines(this.data) === 'win')
       setTimeout(() => attempt(true), 300);
   }.bind(this);
 
@@ -140,12 +162,18 @@ export default function ctrl() {
     chessground.anim(puzzle.jump, this.chessground.data)(this.data, to);
   }.bind(this);
 
+  this.jumpFirst = this.jump.bind(this, 0);
+
   this.jumpPrev = function() {
     this.jump(this.data.replay.step - 1);
   }.bind(this);
 
   this.jumpNext = function() {
     this.jump(this.data.replay.step + 1);
+  }.bind(this);
+
+  this.jumpLast = function() {
+    this.jump(this.data.replay.history.length - 1);
   }.bind(this);
 
   this.initiate = function() {
@@ -169,7 +197,7 @@ export default function ctrl() {
       movable: {
         free: false,
         color: this.data.mode !== 'view' ? this.data.puzzle.color : null,
-        showDests: settings.general.pieceDestinations(),
+        showDests: settings.game.pieceDestinations(),
         events: {
           after: userMove
         }
@@ -194,19 +222,41 @@ export default function ctrl() {
     this.initiate();
   }.bind(this);
 
-  this.newPuzzle = function() {
-    xhr.newPuzzle().then(this.init);
+  this.newPuzzle = function(feedback) {
+    if (feedback) showLoading();
+    xhr.newPuzzle()
+      .then(onXhrSuccess, onXhrError)
+      .then(cfg => feedback ? pushState(cfg) : replaceStateForNewPuzzle(cfg))
+      .then(this.init);
+  }.bind(this);
+
+  this.loadPuzzle = function(id) {
+    xhr.loadPuzzle(id)
+      .then(onXhrSuccess, onXhrError)
+      .then(this.init);
   }.bind(this);
 
   this.retry = function() {
-    xhr.retry(this.data.puzzle.id).then(this.reload);
+    showLoading();
+    xhr.loadPuzzle(this.data.puzzle.id)
+      .then(onXhrSuccess, onXhrError)
+      .then(this.reload);
+  }.bind(this);
+
+  this.share = function() {
+    window.plugins.socialsharing.share(null, null, null, `http://lichess.org/training/${this.data.puzzle.id}`);
   }.bind(this);
 
   this.setDifficulty = function(id) {
-    xhr.setDifficulty(id);
-  };
+    xhr.setDifficulty(id)
+      .then(pushState)
+      .then(this.reload);
+  }.bind(this);
 
-  this.newPuzzle();
+  if (m.route.param('id'))
+    this.loadPuzzle(m.route.param('id'));
+  else
+    this.newPuzzle(false);
 
   window.plugins.insomnia.keepAwake();
 
@@ -215,4 +265,17 @@ export default function ctrl() {
     window.plugins.insomnia.allowSleepAgain();
   };
 
+}
+
+function pushState(cfg) {
+  window.history.pushState(null, null, '/?/training/' + cfg.puzzle.id);
+  return cfg;
+}
+
+function replaceStateForNewPuzzle(cfg) {
+  // ugly hack to bypass mithril's postRedraw hook
+  setTimeout(function() {
+    window.history.replaceState(null, null, '/?/training/' + cfg.puzzle.id);
+  }, 100);
+  return cfg;
 }

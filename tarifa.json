@@ -2,7 +2,7 @@
   "name": "lichess",
   "id": "org.lichess.mobileapp",
   "description": "lichess.org mobile application",
-  "version": "2.2.0",
+  "version": "2.4.0",
   "platforms": [
     "ios@3.8.0",
     "android@4.1.1"
@@ -21,7 +21,7 @@
       "product_file_name": "lichess-stage",
       "API_END_POINT": "en.lichess.org",
       "SOCKET_END_POINT": "socket.en.lichess.org",
-      "beta": "3",
+      "beta": "1",
       "cordova": {
         "whitelist": [
           {
@@ -40,7 +40,7 @@
       "API_END_POINT": "en.lichess.org",
       "SOCKET_END_POINT": "socket.en.lichess.org",
       "GA_ID": "UA-7935029-3",
-      "version": "2.2.0",
+      "version": "2.4.0",
       "cordova": {
         "whitelist": [
           {
@@ -77,7 +77,7 @@
       },
       "prod": {
         "extend": "prod",
-        "version_code": "200101",
+        "version_code": "200400",
         "release": true,
         "sign": "store"
       }
@@ -90,12 +90,13 @@
       "EnableViewportScale": false,
       "KeyboardDisplayRequiresUserAction": false,
       "ShowSplashScreenSpinner": false,
+      "AutoHideSplashScreen": false,
       "SplashScreen": "screen",
       "SplashScreenDelay": 10000,
       "KeepRunning": true,
       "StatusBarOverlaysWebView": false,
       "StatusBarBackgroundColor": "#151A1E",
-      "xwalkVersion": "14",
+      "xwalkVersion": "15",
       "xwalkCommandLine": "--enable-viewport-meta --disable-pull-to-refresh-effect"
     },
     "whitelist": {
@@ -119,6 +120,7 @@
     "android": "./project/bin/check_android.js"
   },
   "plugins": {
+    "phonegap-plugin-push": "phonegap-plugin-push",
     "cordova-plugin-splashscreen": "cordova-plugin-splashscreen@2.1.0",
     "cordova-plugin-device": "cordova-plugin-device@1.0.1",
     "cordova-plugin-dialogs": "cordova-plugin-dialogs@1.1.1",
@@ -127,7 +129,7 @@
     "cordova-plugin-statusbar": "cordova-plugin-statusbar@1.0.1",
     "cordova-plugin-inappbrowser": "cordova-plugin-inappbrowser@1.0.1",
     "cordova-plugin-whitelist": "cordova-plugin-whitelist@1.0.0",
-    "cordova-plugin-google-analytics": "cordova-plugin-google-analytics@0.7.1",
+    "cordova-plugin-google-analytics": "cordova-plugin-google-analytics@0.8.1",
     "cordova-plugin-socialsharing": "cordova-plugin-socialsharing@4.3.81",
     "cordova-plugin-x-toast": "cordova-plugin-x-toast@2.2.0",
     "cordova-plugin-customurlscheme": {

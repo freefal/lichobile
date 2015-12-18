@@ -14,17 +14,21 @@ function forsyth(role) {
   return role === 'knight' ? 'n' : role[0];
 }
 
+import { getRandomArbitrary } from '../../utils';
+import m from 'mithril';
+
+const storageKey = 'ai.current';
+export const storageFenKey = 'ai.setupFen';
+
 export default function controller() {
 
- helper.analyticsTrackView('Offline AI');
-
-  var storageKey = 'ai.current';
+  helper.analyticsTrackView('Offline AI');
 
   this.vm = {
     aiSearching: false
   };
 
-  var save = function() {
+  const save = function() {
     storage.set(storageKey, {
       data: this.data,
       situations: this.replay.situations,
@@ -32,14 +36,14 @@ export default function controller() {
     });
   }.bind(this);
 
-  var addMove = function(orig, dest, promotionRole) {
+  const addMove = function(orig, dest, promotionRole) {
     this.replay.addMove(orig, dest, promotionRole);
     const move = orig + dest + (promotionRole ? forsyth(promotionRole) : '');
     engine.addMove(move);
   }.bind(this);
 
   this.getOpponent = function() {
-    var level = settings.ai.opponent();
+    const level = settings.ai.opponent();
     return {
       name: settings.ai.availableOpponents.filter(function(o) {
         return o[1] === level;
@@ -48,7 +52,7 @@ export default function controller() {
     };
   };
 
-  var engineMove = function() {
+  const engineMove = function() {
     if (this.chessground.data.turnColor !== this.data.player.color) {
       this.vm.aiSearching = true;
       m.redraw();
@@ -60,17 +64,17 @@ export default function controller() {
     }
   }.bind(this);
 
-  var onPromotion = function(orig, dest, role) {
+  const onPromotion = function(orig, dest, role) {
     addMove(orig, dest, role);
   };
 
-  var userMove = function(orig, dest) {
+  const userMove = function(orig, dest) {
     if (!promotion.start(this, orig, dest, onPromotion)) {
       addMove(orig, dest);
     }
   }.bind(this);
 
-  var onMove = function(orig, dest, capturedPiece) {
+  const onMove = function(orig, dest, capturedPiece) {
     if (!capturedPiece)
       sound.move();
     else
@@ -90,6 +94,8 @@ export default function controller() {
     } else engineMove();
   }.bind(this);
 
+  this.actions = new actions.controller(this);
+
   this.init = function(data, situations, ply) {
     this.data = data;
     if (!this.chessground)
@@ -99,15 +105,15 @@ export default function controller() {
     else this.replay.init(situations, ply);
     this.replay.apply();
     if (this.actions) this.actions.close();
-    else this.actions = new actions.controller(this);
     engine.init(this.data.game.fen);
     engineMove();
   }.bind(this);
 
-  this.initAs = function(color) {
-    this.init(makeData({
-      color: color
-    }));
+  this.startNewGame = function() {
+    const opts = {
+      color: getColorFromSettings()
+    };
+    this.init(makeData(opts));
   }.bind(this);
 
   this.jump = function(ply) {
@@ -131,8 +137,12 @@ export default function controller() {
     return this.data.player.color === 'black' ? 1 : 0;
   }.bind(this);
 
-  var saved = storage.get(storageKey);
-  if (saved) try {
+  const saved = storage.get(storageKey);
+  const setupFen = storage.get(storageFenKey);
+  if (setupFen) {
+    this.init(makeData({ fen: setupFen, color: getColorFromSettings() }));
+    storage.remove(storageFenKey);
+  } else if (saved) try {
     this.init(saved.data, saved.situations, saved.ply);
   } catch (e) {
     console.log(e, 'Fail to load saved game');
@@ -144,4 +154,16 @@ export default function controller() {
   this.onunload = function() {
     window.plugins.insomnia.allowSleepAgain();
   };
+}
+
+function getColorFromSettings() {
+  let color = settings.ai.color();
+  if (color === 'random') {
+    if (getRandomArbitrary(0, 2) > 1)
+      color = 'white';
+    else
+      color = 'black';
+  }
+
+  return color;
 }

@@ -1,11 +1,10 @@
 import merge from 'lodash/object/merge';
 import assign from 'lodash/object/assign';
 import range from 'lodash/utility/range';
-import * as utils from './utils';
+import { serializeQueryParameters } from './utils';
 import signals from './signals';
 import storage from './storage';
-
-const lichessSri = utils.lichessSri;
+import { lichessSri } from './http';
 
 const urlsPool = range(9021, 9030).map(function(e) {
   return window.lichess.socketEndPoint + ':' + e;
@@ -57,7 +56,7 @@ StrongSocket.prototype = {
     var self = this;
     self.destroy();
     self.autoReconnect = true;
-    var fullUrl = 'ws://' + self.baseUrl() + self.url + '?' + utils.serializeQueryParameters(assign(self.settings.params, {
+    var fullUrl = 'ws://' + self.baseUrl() + self.url + '?' + serializeQueryParameters(assign(self.settings.params, {
       version: self.version
     }));
     self.debug('connection attempt to ' + fullUrl, true);
@@ -119,7 +118,7 @@ StrongSocket.prototype = {
       t: t,
       d: data
     });
-    self.debug("send " + message);
+    self.debug('send ' + message);
     try {
       self.ws.send(message);
     } catch (e) {
@@ -174,7 +173,7 @@ StrongSocket.prototype = {
 
   pingData: function() {
     return JSON.stringify({
-      t: "p",
+      t: 'p',
       v: this.version
     });
   },
@@ -183,11 +182,11 @@ StrongSocket.prototype = {
     var self = this;
     if (msg.v) {
       if (msg.v <= self.version) {
-        self.debug("already has event " + msg.v);
+        self.debug('already has event ' + msg.v);
         return;
       }
       if (msg.v > self.version + 1) {
-        self.debug("event gap detected from " + self.version + " to " + msg.v);
+        self.debug('event gap detected from ' + self.version + ' to ' + msg.v);
       }
       self.version = msg.v;
     }
@@ -214,7 +213,7 @@ StrongSocket.prototype = {
 
   debug: function(msg, always) {
     if ((always || this.options.debug) && window.console && console.debug) {
-      console.debug("[" + this.options.name + " " + lichessSri + "]", msg);
+      console.debug('[' + this.options.name + ' ' + lichessSri + ']', msg);
     }
   },
 
@@ -227,7 +226,7 @@ StrongSocket.prototype = {
 
   disconnect: function() {
     if (this.ws) {
-      this.debug("Disconnect", true);
+      this.debug('Disconnect', true);
       this.autoReconnect = false;
       this.ws.onerror = function() {};
       this.ws.onclose = function() {};

@@ -16,8 +16,6 @@ function tupleOf(x) {
 export default {
   general: {
     lang: localstorageprop('settings.lang'),
-    animations: localstorageprop('settings.gameAnimations', true),
-    pieceDestinations: localstorageprop('settings.pieceDestinations', true),
     sound: localstorageprop('settings.sound', true),
     theme: {
       background: localstorageprop('settings.bgTheme', 'dark'),
@@ -45,13 +43,24 @@ export default {
         'fantasy',
         'shapes',
         'chessnut',
-        'chess7'
+        'chess7',
+        'symmetric'
       ],
-      board: localstorageprop('settings.theme.board', 'metal'),
+      board: localstorageprop('settings.theme.board', 'brown'),
       piece: localstorageprop('settings.theme.piece', 'cburnett')
     },
     analytics: localstorageprop('settings.analytics', true),
-    coords: localstorageprop('settings.coords', true)
+    notifications: localstorageprop('settings.notifications', true)
+  },
+
+  game: {
+    supportedVariants: ['standard', 'chess960', 'antichess', 'fromPosition',
+      'kingOfTheHill', 'threeCheck', 'atomic', 'horde'
+    ],
+    animations: localstorageprop('settings.gameAnimations', true),
+    pieceDestinations: localstorageprop('settings.pieceDestinations', true),
+    coords: localstorageprop('settings.coords', true),
+    moveConfirmation: localstorageprop('settings.game.moveConfirmation', 'correspondence')
   },
 
   otb: {
@@ -69,14 +78,12 @@ export default {
       ['Gustavo Fring', '7'],
       ['Heisenberg', '8']
     ],
+    color: localstorageprop('settings.ai.color', 'white'),
     opponent: localstorageprop('settings.ai.opponent', '1')
   },
 
-  game: {
+  gameSetup: {
     selected: localstorageprop('settings.game.selected', 'human'),
-    supportedVariants: ['standard', 'chess960', 'antichess', 'fromPosition',
-      'kingOfTheHill', 'threeCheck', 'atomic', 'horde'
-    ],
     availableTimes: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '15',
       '20', '25', '30', '40', '60', '90', '120', '150', '180'
     ],
@@ -95,7 +102,8 @@ export default {
       availableVariants: [
         ['Standard', '1'],
         ['Chess960', '2'],
-        ['King of the Hill', '4']
+        ['King of the Hill', '4'],
+        ['From Position', '3']
       ],
       variant: localstorageprop('settings.game.ai.variant', '1'),
       availableTimeModes: [
@@ -135,7 +143,8 @@ export default {
       time: localstorageprop('settings.game.human.time', '5'),
       increment: localstorageprop('settings.game.human.increment', '0'),
       days: localstorageprop('settings.game.human.days', '2'),
-      mode: localstorageprop('settings.game.human.mode', '0')
+      mode: localstorageprop('settings.game.human.mode', '0'),
+      membersOnly: localstorageprop('settings.game.human.membersOnly', false)
     },
 
     challenge: {
@@ -146,7 +155,8 @@ export default {
         ['Three-check', '5'],
         ['Antichess', '6'],
         ['Atomic', '7'],
-        ['Horde', '8']
+        ['Horde', '8'],
+        ['From Position', '3']
       ],
       color: localstorageprop('settings.game.invite.color', 'random'),
       variant: localstorageprop('settings.game.invite.variant', '1'),

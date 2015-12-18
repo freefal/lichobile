@@ -18,13 +18,12 @@ const gamesMenu = {};
 gamesMenu.isOpen = false;
 
 gamesMenu.open = function() {
-  helper.analyticsTrackView('Games Menu');
   backbutton.stack.push(gamesMenu.close);
   gamesMenu.isOpen = true;
   setTimeout(function() {
     if (scroller) scroller.goToPage(1, 0);
   }, 400);
-  if (utils.hasNetwork() && session.isConnected()) session.refresh();
+  session.refresh();
 };
 
 gamesMenu.close = function(fromBB) {
@@ -276,4 +275,4 @@ gamesMenu.view = function() {
   );
 };
 
-module.exports = gamesMenu;
+export default gamesMenu;

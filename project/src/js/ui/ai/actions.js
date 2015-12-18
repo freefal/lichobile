@@ -1,27 +1,44 @@
-import * as utils from '../../utils';
 import i18n from '../../i18n';
-import { util } from 'chessground';
 import settings from '../../settings';
 import formWidgets from '../shared/form';
-import { renderEndedGameStatus } from '../shared/offlineRound';
+import { renderSharePGNButton, renderEndedGameStatus } from '../shared/offlineRound';
 import popupWidget from '../shared/popup';
 import backbutton from '../../backbutton';
 import helper from '../helper';
 import m from 'mithril';
 
+const colors = [
+  ['white', 'white'],
+  ['black', 'black'],
+  ['randomColor', 'random']
+];
+
+export function opponentSelector() {
+  return (
+    <div className="select_input">
+      {formWidgets.renderSelect('opponent', 'opponent', settings.ai.availableOpponents, settings.ai.opponent)}
+    </div>
+  );
+}
+
+export function sideSelector() {
+  return (
+    <div className="select_input">
+      {formWidgets.renderSelect('side', 'color', colors, settings.ai.color)}
+    </div>
+  );
+}
+
 function renderAlways(ctrl) {
-  var d = ctrl.root.data;
   return [
-    m('div.action', m('div.select_input',
-      formWidgets.renderSelect('opponent', 'opponent', settings.ai.availableOpponents, settings.ai.opponent)
-    )),
+    m('div.action', [
+      sideSelector(),
+      opponentSelector()
+    ]),
     m('button[data-icon=U]', {
-      config: helper.ontouch(utils.f(ctrl.root.initAs, util.opposite(d.player.color)))
+    config: helper.ontouch(ctrl.root.startNewGame)
     }, i18n('createAGame')),
-    m('button.fa', {
-      className: 'fa-share-alt',
-      config: helper.ontouch(ctrl.sharePGN)
-    }, i18n('sharePGN'))
+    renderSharePGNButton(ctrl)
   ];
 }
 
@@ -59,9 +76,10 @@ export default {
       null,
       function() {
         return [
-          renderEndedGameStatus(ctrl),
+          renderEndedGameStatus(ctrl)
+        ].concat(
           renderAlways(ctrl)
-        ];
+        );
       },
       ctrl.isOpen(),
       ctrl.close

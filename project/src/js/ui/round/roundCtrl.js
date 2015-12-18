@@ -12,15 +12,15 @@ import gameStatus from '../../lichess/status';
 import correspondenceClockCtrl from './correspondenceClock/correspondenceCtrl';
 import session from '../../session';
 import socket from '../../socket';
-import socketHandler from './socketHandler';
 import signals from '../../signals';
+import socketHandler from './socketHandler';
 import atomic from './atomic';
 import backbutton from '../../backbutton';
 import helper from '../helper';
 import * as xhr from './roundXhr';
 import m from 'mithril';
 
-export default function controller(cfg, onFeatured, onTVChannelChange) {
+export default function controller(cfg, onFeatured, onTVChannelChange, userTv, onUserTVRedirect) {
 
   helper.analyticsTrackView('Round');
 
@@ -41,20 +41,28 @@ export default function controller(cfg, onFeatured, onTVChannelChange) {
   }.bind(this);
 
   this.vm = {
-    connectedWS: true,
     flip: false,
     showingActions: false,
     replayHash: '',
+    buttonsHash: '',
     ply: this.lastPly(),
     moveToSubmit: null
   };
 
-  socket.createGame(
-    this.data.url.socket,
-    this.data.player.version,
-    socketHandler(this, onFeatured),
-    this.data.url.round
-  );
+  var connectSocket = function() {
+    socket.createGame(
+      this.data.url.socket,
+      this.data.player.version,
+      socketHandler(this, onFeatured, onUserTVRedirect),
+      this.data.url.round,
+      userTv
+    );
+  }.bind(this);
+
+  connectSocket();
+
+  // reconnect game socket after a cancelled seek
+  signals.seekCanceled.add(connectSocket);
 
   this.stepsHash = function(steps) {
     var h = '';
@@ -131,6 +139,8 @@ export default function controller(cfg, onFeatured, onTVChannelChange) {
   this.setTitle = function() {
     if (this.data.tv)
       this.title = 'Lichess TV';
+    else if (this.data.userTV)
+      this.title = this.data.userTV;
     else if (gameStatus.finished(this.data))
       this.title = i18n('gameOver');
     else if (gameStatus.aborted(this.data))
@@ -252,7 +262,7 @@ export default function controller(cfg, onFeatured, onTVChannelChange) {
         if (d.game.variant.key === 'atomic') setTimeout(this.chessground.playPremove, 100);
         else this.chessground.playPremove();
       }
-      if (this.data.game.speed === 'correspondence' && session.isConnected()) session.refresh();
+      if (this.data.game.speed === 'correspondence') session.refresh();
     }
 
     if (o.clock) {
@@ -309,7 +319,7 @@ export default function controller(cfg, onFeatured, onTVChannelChange) {
 
   var clockIntervId;
   if (this.clock) clockIntervId = setInterval(this.clockTick, 100);
-  else clockIntervId = setInterval(correspondenceClockTick, 1000);
+  else if (this.correspondenceClock) clockIntervId = setInterval(correspondenceClockTick, 1000);
 
   this.chat = (this.data.opponent.ai || this.data.player.spectator) ?
     null : new chat.controller(this);
@@ -319,6 +329,7 @@ export default function controller(cfg, onFeatured, onTVChannelChange) {
       this.vm.ply = rCfg.steps[rCfg.steps.length - 1].ply;
     if (this.chat) this.chat.onReload(rCfg.chat);
     if (this.data.tv) rCfg.tv = this.data.tv;
+    if (this.data.userTV) rCfg.userTV = this.data.userTV;
     this.data = data(rCfg);
     makeCorrespondenceClock();
     this.setTitle();
@@ -327,36 +338,19 @@ export default function controller(cfg, onFeatured, onTVChannelChange) {
 
   window.plugins.insomnia.keepAwake();
 
-  var onConnected = function() {
-    var wasOff = !this.vm.connectedWS;
-    this.vm.connectedWS = true;
-    if (wasOff) m.redraw();
-  }.bind(this);
-
-  var onDisconnected = function() {
-    var wasOn = this.vm.connectedWS;
-    this.vm.connectedWS = false;
-    if (wasOn) setTimeout(function() {
-      m.redraw();
-    }, 2000);
-  }.bind(this);
-
   var onResume = function() {
     xhr.reload(this).then(this.reload);
   }.bind(this);
 
-  signals.socket.connected.add(onConnected);
-  signals.socket.disconnected.add(onDisconnected);
   document.addEventListener('resume', onResume);
 
   this.onunload = function() {
     socket.destroy();
-    if (clockIntervId) clearInterval(clockIntervId);
+    clearInterval(clockIntervId);
     if (this.chat) this.chat.onunload();
-    signals.socket.connected.remove(onConnected);
-    signals.socket.disconnected.remove(onDisconnected);
     document.removeEventListener('resume', onResume);
     window.plugins.insomnia.allowSleepAgain();
+    signals.seekCanceled.remove(connectSocket);
   };
 }
 

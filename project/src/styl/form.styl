@@ -53,6 +53,8 @@ input[type='checkbox']:checked:after
     margin-right 2%
     &:last-child
       margin-right 0
+    select
+      padding-right 0
     label
       &:after
         content ""
@@ -65,10 +67,13 @@ input[type='checkbox']:checked:after
     left 0px
     -webkit-appearance none
     padding-left 90px
+    padding-right 25px
     height 40px
     line-height 40px
   &.large_label select
     padding-left 150px
+  &.no_label select
+    padding-left 10px
   label
     padding: 0
     color labelText

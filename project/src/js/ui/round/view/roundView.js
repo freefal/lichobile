@@ -14,9 +14,10 @@ import gameApi from '../../../lichess/game';
 import { perfTypes } from '../../../lichess/perfs';
 import gameStatusApi from '../../../lichess/status';
 import { view as renderChat } from '../chat';
-import renderCorrespondenceClock from '../correspondenceClock/correspondenceView';
+import { view as renderCorrespondenceClock } from '../correspondenceClock/correspondenceView';
 import variantApi from '../../../lichess/variant';
 import { renderTable as renderReplayTable } from './replay';
+import socket from '../../../socket';
 import m from 'mithril';
 
 export default function view(ctrl) {
@@ -52,10 +53,10 @@ export function renderMaterial(material) {
   return children;
 }
 
-export function renderBoard(ctrl, moreWrapperClasses) {
+export function renderBoard(ctrl, moreWrapperClasses, withStyle = true) {
   const { vh, vw } = helper.viewportDim();
   // ios 7.1 still doesn't support vh unit in calc
-  // see game.styl section '.board_wrapper' for corresponding calc() rules
+  // see board-content.styl section '.board_wrapper' for corresponding calc() rules
   const landscapeDim = (vh > 700 && vw < 1050) ? vh - 50 - vh * 0.12 : vh - 50;
   const boardStyle = helper.isLandscape() ? {
     width: landscapeDim + 'px',
@@ -79,7 +80,7 @@ export function renderBoard(ctrl, moreWrapperClasses) {
   }
 
   return (
-    <section key={boardKey} className={wrapperClass} style={boardStyle}>
+    <section key={boardKey} className={wrapperClass} style={withStyle ? boardStyle : {}}>
       <div className={boardClass}>
         {chessground.view(ctrl.chessground)}
       </div>
@@ -90,13 +91,16 @@ export function renderBoard(ctrl, moreWrapperClasses) {
 function renderHeader(ctrl) {
   return [
     m('nav', {
-      className: ctrl.vm.connectedWS ? '' : 'reconnecting'
+      className: socket.isConnected() ? '' : 'reconnecting'
     }, [
       menuButton(),
-      ctrl.vm.connectedWS ? m('h1.playing', ctrl.title) : m('h1.reconnecting', [
+      socket.isConnected() ? m('h1.playing', [
+        ctrl.data.userTV ? m('span.withIcon[data-icon=1]') : null,
+        ctrl.title
+      ]) : utils.hasNetwork() ? m('h1.reconnecting.withTitle', [
         i18n('reconnecting'),
         loader
-      ]),
+      ]) : m('h1', 'Offline'),
       headerBtns()
     ])
   ];
@@ -105,8 +109,8 @@ function renderHeader(ctrl) {
 function renderContent(ctrl) {
   const material = chessground.board.getMaterialDiff(ctrl.chessground.data);
   const replayTable = renderReplayTable(ctrl);
-  const player = renderAntagonist(ctrl, ctrl.data.player, material[ctrl.data.player.color], 'player');
-  const opponent = renderAntagonist(ctrl, ctrl.data.opponent, material[ctrl.data.opponent.color], 'opponent');
+  const player = renderPlayTable(ctrl, ctrl.data.player, material[ctrl.data.player.color], 'player');
+  const opponent = renderPlayTable(ctrl, ctrl.data.opponent, material[ctrl.data.opponent.color], 'opponent');
 
   if (helper.isPortrait())
     return [
@@ -156,10 +160,10 @@ function renderCheckCount(ctrl, color) {
 
 function renderSubmitMovePopup(ctrl) {
   if (!ctrl.vm.moveToSubmit)
-    return <div className="overlay popup overlay_fade submitMovePopup" />;
+    return <div className="overlay_popup_wrapper submitMovePopup" />;
 
   return (
-    <div className="overlay popup overlay_fade open submitMovePopup">
+    <div className="overlay_popup_wrapper submitMovePopup open">
       <div className="overlay_popup">
         {button.submitMove(ctrl)}
       </div>
@@ -167,9 +171,44 @@ function renderSubmitMovePopup(ctrl) {
   );
 }
 
-function renderAntagonist(ctrl, player, material, position) {
+function userInfos(user, player, playerName) {
+  let title;
+  if (user) {
+    let onlineStatus = user.online ? 'connected to lichess' : 'offline';
+    let onGameStatus = player.onGame ? 'currently on this game' : 'currently not on this game';
+    title = `${playerName}: ${onlineStatus}; ${onGameStatus}`;
+  } else
+    title = playerName;
+  window.plugins.toast.show(title, 'short', 'center');
+}
+
+function renderAntagonistInfo(ctrl, player, material) {
   const user = player.user;
   const playerName = utils.playerName(player, helper.isLandscape());
+
+  return m('div.antagonistInfos', {
+    config: user ?
+      helper.ontouch(utils.f(m.route, '/@/' + user.id), () => userInfos(user, player, playerName)) :
+      utils.noop
+  }, [
+    m('h2.antagonistUser', [
+      user ? m('span.status[data-icon=r]', { className: user.online ? 'online' : 'offline' }) : null,
+      playerName,
+      player.onGame ? m('span.ongame.yes[data-icon=3]') : m('span.ongame.no[data-icon=0]')
+    ]),
+    m('div.ratingAndMaterial', [
+      user && helper.isPortrait() ? m('h3.rating', [
+        player.rating,
+        player.provisional ? '?' : '',
+        ratingDiff(player)
+      ]) : null,
+      renderCheckCount(ctrl, player.color),
+      ctrl.data.game.variant.key === 'horde' ? null : renderMaterial(material)
+    ])
+  ]);
+}
+
+function renderPlayTable(ctrl, player, material, position) {
   const {vh, vw} = helper.viewportDim();
   const headerHeight = vh > 480 ? 50 : 40;
   const contentHeight = vh - headerHeight;
@@ -178,41 +217,11 @@ function renderAntagonist(ctrl, player, material, position) {
   const style = helper.isLandscape() ? {} : { height: ((contentHeight - vw - 45) / 2) + 'px' };
   const key = helper.isLandscape() ? position + '-landscape' : position + '-portrait';
 
-  function infos() {
-    let title;
-    if (user) {
-      let onlineStatus = user.online ? 'connected to lichess' : 'offline';
-      let onGameStatus = player.onGame ? 'currently on this game' : 'currently not on this game';
-      title = `${playerName}: ${onlineStatus}; ${onGameStatus}`;
-    } else
-      title = playerName;
-    window.plugins.toast.show(title, 'short', 'center');
-  }
-
-  return m('section.antagonist', { className: position, key, style }, [
-    m('div.antagonistInfos', {
-      config: user ?
-        helper.ontouch(utils.f(m.route, '/@/' + user.id), infos) :
-        utils.noop
-    }, [
-      m('h2.antagonistUser', [
-        user ? m('span.status[data-icon=r]', { className: user.online ? 'online' : 'offline' }) : null,
-        playerName,
-        player.onGame ? m('span.ongame.yes[data-icon=3]') : m('span.ongame.no[data-icon=0]')
-      ]),
-      m('div.ratingAndMaterial', [
-        user && helper.isPortrait() ? m('h3.rating', [
-          player.rating,
-          player.provisional ? '?' : '',
-          ratingDiff(player)
-        ]) : null,
-        renderCheckCount(ctrl, player.color),
-        ctrl.data.game.variant.key === 'horde' ? null : renderMaterial(material)
-      ])
-    ]),
+  return m('section.playTable', { className: position, key, style }, [
+    renderAntagonistInfo(ctrl, player, material),
     ctrl.clock ? renderClock(ctrl.clock, player.color, ctrl.isClockRunning() ? ctrl.data.game.player : null) : (
       ctrl.data.correspondence ? renderCorrespondenceClock(
-        ctrl.correspondenceClock, i18n, player.color, ctrl.data.game.player
+        ctrl.correspondenceClock, player.color, ctrl.data.game.player
       ) : null
     )
   ]);
@@ -221,6 +230,7 @@ function renderAntagonist(ctrl, player, material, position) {
 function tvChannelSelector(ctrl) {
   let channels = perfTypes.filter(e => e[0] !== 'correspondence').map(e => [e[1], e[0]]);
   channels.unshift(['Top rated', 'best']);
+  channels.push(['Computer', 'computer']);
 
   return m('div.action', m('div.select_input',
     formWidgets.renderSelect('TV channel', 'tvChannel', channels, settings.tv.channel,
@@ -232,7 +242,6 @@ function renderGameRunningActions(ctrl) {
   if (ctrl.data.player.spectator) {
     let controls = [
       button.shareLink(ctrl),
-      button.flipBoard(ctrl),
       ctrl.data.tv ? tvChannelSelector(ctrl) : null
     ];
 
@@ -253,7 +262,6 @@ function renderGameRunningActions(ctrl) {
   return [
     m('div.game_controls', [
       button.shareLink(ctrl),
-      button.flipBoard(ctrl),
       button.moretime(ctrl),
       button.standard(ctrl, gameApi.abortable, 'L', 'abortGame', 'abort'),
       button.forceResign(ctrl) || [
@@ -279,12 +287,11 @@ function renderGameEndedActions(ctrl) {
   const buttons = ctrl.data.player.spectator ? [
     button.shareLink(ctrl),
     button.sharePGN(ctrl),
-    button.flipBoard(ctrl),
     ctrl.data.tv ? tvChannelSelector(ctrl) : null
   ] : [
     button.shareLink(ctrl),
     button.sharePGN(ctrl),
-    button.flipBoard(ctrl),
+    button.newOpponent(ctrl),
     button.answerOpponentRematch(ctrl),
     button.cancelRematch(ctrl),
     button.rematch(ctrl)
@@ -330,26 +337,42 @@ function renderGamePopup(ctrl) {
 }
 
 function renderGameActionsBar(ctrl) {
-  var children = [
-    m('button#open_player_controls.game_action.fa.fa-ellipsis-h', {
+  const answerRequired = ctrl.data.opponent.proposingTakeback ||
+    ctrl.data.opponent.offeringDraw ||
+    gameApi.forceResignable(ctrl.data) ||
+    ctrl.data.opponent.offeringRematch;
+
+  const prevPly = ctrl.vm.ply - 1;
+  const nextPly = ctrl.vm.ply + 1;
+  const bwdOn = ctrl.vm.ply !== prevPly && prevPly >= ctrl.firstPly();
+  const fwdOn = ctrl.vm.ply !== nextPly && nextPly <= ctrl.lastPly();
+  const hash = answerRequired + (!ctrl.chat || ctrl.chat.unread) + ctrl.vm.flip + bwdOn + fwdOn;
+
+  if (ctrl.vm.buttonsHash === hash) return {
+    subtree: 'retain'
+  };
+  ctrl.vm.buttonsHash = hash;
+
+  const children = [
+    m('button.action_bar_button.fa.fa-ellipsis-h', {
+      key: 'gameMenu',
       className: helper.classSet({
-        'answer_required': ctrl.data.opponent.proposingTakeback ||
-          ctrl.data.opponent.offeringDraw ||
-          gameApi.forceResignable(ctrl.data) ||
-          ctrl.data.opponent.offeringRematch
+        glow: answerRequired
       }),
       config: helper.ontouch(ctrl.showActions)
     }),
-    ctrl.chat ? m('button#open_chat.game_action[data-icon=c]', {
+    ctrl.chat ? m('button.action_bar_button[data-icon=c]', {
+      key: 'chat',
       className: helper.classSet({
-        unread: ctrl.chat.unread
+        glow: ctrl.chat.unread
       }),
       config: helper.ontouch(ctrl.chat.open || utils.noop)
-    }) : m('button.game_action.empty[data-icon=c]'),
+    }) : m('button.action_bar_button.empty[data-icon=c]'),
+    button.flipBoard(ctrl),
     button.backward(ctrl),
     button.forward(ctrl)
   ];
-  return m('section#game_actions', {
+  return m('section.actions_bar', {
     key: 'game-actions-bar'
   }, children);
 }

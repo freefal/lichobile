@@ -19,7 +19,7 @@ export function vote(id, v) {
   });
 }
 
-export function retry(id) {
+export function loadPuzzle(id) {
   return request(`/training/${id}/load`);
 }
 
@@ -34,4 +34,8 @@ export function setDifficulty(d) {
 
 export function newPuzzle() {
   return request('/training/new');
+}
+
+export function history() {
+  return request('/training/history');
 }

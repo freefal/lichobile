@@ -6,6 +6,8 @@ import formWidgets from './shared/form';
 import popupWidget from './shared/popup';
 import i18n from '../i18n';
 import backbutton from '../backbutton';
+import ViewOnlyBoard from './shared/ViewOnlyBoard';
+import helper from './helper';
 import m from 'mithril';
 
 var challengeForm = {
@@ -24,6 +26,15 @@ challengeForm.open = function(userId) {
   }
   backbutton.stack.push(challengeForm.close);
   challengeForm.isOpen = true;
+  challengeForm.fen = null;
+};
+
+challengeForm.openFromPosition = function(fen) {
+  challengeForm.userId = null;
+  settings.gameSetup.challenge.variant('3');
+  settings.gameSetup.challenge.mode('0');
+  challengeForm.open();
+  challengeForm.fen = fen;
 };
 
 challengeForm.close = function(fromBB) {
@@ -33,7 +44,7 @@ challengeForm.close = function(fromBB) {
 
 function challenge() {
   var userId = challengeForm.userId;
-  return inviteFriend(userId).then(function(data) {
+  return inviteFriend(userId, challengeForm.fen).then(function(data) {
     var url = `/game${data.url.round}`;
     if (userId) url += `/user/${userId}`;
     m.route(url);
@@ -45,9 +56,9 @@ function challenge() {
 
 function renderForm() {
   var formName = 'invite';
-  var settingsObj = settings.game.challenge;
-  var variants = settings.game.challenge.availableVariants;
-  var timeModes = settings.game.challenge.availableTimeModes;
+  var settingsObj = settings.gameSetup.challenge;
+  var variants = settings.gameSetup.challenge.availableVariants;
+  var timeModes = settings.gameSetup.challenge.availableTimeModes;
   var timeMode = settingsObj.timeMode();
   var hasClock = timeMode === '1';
   var hasDays = timeMode === '2';
@@ -86,11 +97,31 @@ function renderForm() {
     }, [
       formWidgets.renderSelect('variant', formName + 'variant', variants, settingsObj.variant)
     ]),
+    settingsObj.variant() === '3' ?
+    m('div.setupPosition', {
+      key: 'position'
+    }, challengeForm.fen ? [
+      m('div.setupMiniBoardWrapper', {
+        config: helper.ontouch(() => {
+          challengeForm.close();
+          m.route(`/editor/${encodeURIComponent(challengeForm.fen)}`);
+        })
+      }, [
+        m.component(ViewOnlyBoard, { fen: challengeForm.fen })
+      ])
+      ] : m('div', m('button.withIcon.fa.fa-pencil', {
+        config: helper.ontouch(() => {
+          challengeForm.close();
+          m.route('/editor');
+        })
+      }, i18n('boardEditor')))
+    ) : null,
+    settingsObj.variant() !== '3' ?
     m('div.select_input', {
       key: formName + 'mode'
     }, [
       formWidgets.renderSelect('mode', formName + 'mode', modes, settingsObj.mode)
-    ])
+    ]) : null
   ];
 
   var timeFieldset = [
@@ -107,13 +138,13 @@ function renderForm() {
         key: formName + 'time'
       }, [
         formWidgets.renderSelect('time', formName + 'time',
-          settings.game.availableTimes.map(utils.tupleOf), settingsObj.time, false)
+          settings.gameSetup.availableTimes.map(utils.tupleOf), settingsObj.time, false)
       ]),
       m('div.select_input.inline', {
         key: formName + 'increment'
       }, [
         formWidgets.renderSelect('increment', formName + 'increment',
-          settings.game.availableIncrements.map(utils.tupleOf), settingsObj.increment, false)
+          settings.gameSetup.availableIncrements.map(utils.tupleOf), settingsObj.increment, false)
       ])
     );
   }
@@ -124,14 +155,14 @@ function renderForm() {
         key: formName + 'days'
       }, [
         formWidgets.renderSelect('daysPerTurn', formName + 'days',
-          settings.game.availableDays.map(utils.tupleOf), settingsObj.days, false)
+          settings.gameSetup.availableDays.map(utils.tupleOf), settingsObj.days, false)
       ]));
   }
 
   return m('form#invite_form.game_form', {
     onsubmit: function(e) {
       e.preventDefault();
-      if (!settings.game.isTimeValid(settingsObj)) return;
+      if (!settings.gameSetup.isTimeValid(settingsObj)) return;
       challengeForm.close();
       challenge();
     }

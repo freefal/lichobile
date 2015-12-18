@@ -1,15 +1,17 @@
 import layout from '../layout';
 import i18n from '../../i18n';
-import { header } from '../shared/common';
+import { header, connectingHeader, viewOnlyBoardContent } from '../shared/common';
 import { view as renderPromotion } from '../shared/offlineRound/promotion';
 import helper from '../helper';
 import { renderBoard } from '../round/view/roundView';
-import menu from './menu';
+import menu, { renderUserInfos, renderSigninBox } from './menu';
 import m from 'mithril';
 
 export default function view(ctrl) {
   return layout.board(
-    header.bind(undefined, i18n('training')),
+    !ctrl.data || ctrl.vm.loading ?
+      connectingHeader.bind(undefined, i18n('training')) :
+      header.bind(undefined, i18n('training')),
     renderContent.bind(undefined, ctrl),
     () => [
       renderPromotion(ctrl),
@@ -20,7 +22,7 @@ export default function view(ctrl) {
 }
 
 function renderContent(ctrl) {
-  if (!ctrl.data) return;
+  if (!ctrl.data) return viewOnlyBoardContent();
 
   if (helper.isPortrait())
     return [
@@ -31,13 +33,23 @@ function renderContent(ctrl) {
     ];
   else
     return [
-      renderBoard(ctrl)
+      renderBoard(ctrl),
+      <section key="table" className="table">
+        <section className="trainingTable">
+          {ctrl.data.mode === 'view' ? renderProblemDetails(ctrl) : renderExplanation(ctrl)}
+          <div className="trainingUserInfos landscape">
+            { ctrl.data.user ? renderUserInfos(ctrl) : renderSigninBox()}
+          </div>
+          {ctrl.data.mode === 'view' ? renderViewTable(ctrl) : renderPlayerTable(ctrl)}
+        </section>
+        {renderActionsBar(ctrl)}
+      </section>
     ];
 }
 
 function renderExplanation(ctrl) {
   return (
-    <section className="trainingTable">
+    <section className="trainingSection">
       <p className="findit">
         {i18n(ctrl.data.puzzle.color === 'white' ? 'findTheBestMoveForWhite' : 'findTheBestMoveForBlack')}
       </p>
@@ -46,9 +58,16 @@ function renderExplanation(ctrl) {
 }
 
 function renderProblemDetails(ctrl) {
+
+  const viewGame = ctrl.data.puzzle.gameId ? helper.ontouch(
+    () => m.route(`/game/${ctrl.data.puzzle.gameId}/${ctrl.data.puzzle.color}`),
+    () => window.plugins.toast.show(i18n('fromGameLink', ctrl.data.puzzle.gameId), 'short', 'bottom')
+  ) : () => {};
   return (
-    <section className="trainingTable">
-      <h3 className="withIcon" data-icon="-">{i18n('puzzleId', ctrl.data.puzzle.id)}</h3>
+    <section className="trainingSection">
+      <h3 className="puzzle withIcon button" data-icon="-" config={viewGame}>
+        {i18n('puzzleId', ctrl.data.puzzle.id)}
+      </h3>
       <div>
         <p>{i18n('ratingX', ctrl.data.puzzle.rating)}</p>
         <p>{i18n('playedXTimes', ctrl.data.puzzle.attempts)}</p>
@@ -59,7 +78,7 @@ function renderProblemDetails(ctrl) {
 
 function renderPlayerTable(ctrl) {
   return (
-    <section className="trainingTable">
+    <section className="trainingSection">
       <div className="yourTurn">
         {i18n(ctrl.chessground.data.turnColor === ctrl.data.puzzle.color ? 'yourTurn' : 'waiting')}
       </div>
@@ -71,7 +90,7 @@ function renderPlayerTable(ctrl) {
 
 function renderViewTable(ctrl) {
   return (
-    <section className="trainingTable">
+    <section className="trainingSection">
       <div />
       {renderResult(ctrl)}
     </section>
@@ -80,15 +99,15 @@ function renderViewTable(ctrl) {
 
 function renderActionsBar(ctrl) {
   const vdom = [
-    m('button.training_action.fa.fa-ellipsis-h', {
+    m('button.action_bar_button.training_action.fa.fa-ellipsis-h', {
       key: 'puzzleMenu',
       config: helper.ontouch(ctrl.menu.open)
     })
   ];
-  return m('section#training_actions', vdom.concat(
+  return m('section.#training_actions.actions_bar', vdom.concat(
     ctrl.data.mode === 'view' ?
       renderViewControls(ctrl) :
-      m('button.training_action[data-icon=b]', {
+      m('button.action_bar_button.training_action[data-icon=b]', {
         key: 'giveUpPuzzle',
         config: helper.ontouch(ctrl.giveUp, () => window.plugins.toast.show(i18n('giveUp'), 'short', 'bottom'))
       })
@@ -99,30 +118,27 @@ function renderViewControls(ctrl) {
   var history = ctrl.data.replay.history;
   var step = ctrl.data.replay.step;
   return [
-    m('button.training_action[data-icon=G]', {
+    m('button.action_bar_button.training_action[data-icon=G]', {
       key: 'continueTraining',
-      config: helper.ontouch(ctrl.newPuzzle, () => window.plugins.toast.show(i18n('continueTraining'), 'short', 'bottom'))
+      config: helper.ontouch(ctrl.newPuzzle.bind(ctrl, true), () => window.plugins.toast.show(i18n('continueTraining'), 'short', 'bottom'))
     }),
-    !(ctrl.data.attempt && ctrl.data.attempt.win || ctrl.data.win) ? m('button.training_action[data-icon=P]', {
+    m('button.action_bar_button.training_action[data-icon=P]', {
       key: 'retryPuzzle',
       config: helper.ontouch(ctrl.retry, () => window.plugins.toast.show(i18n('retryThisPuzzle'), 'short', 'bottom'))
-    }) : null,
-    ctrl.data.puzzle.gameId ? m('button.training_action[data-icon=v]', {
-      key: 'fromGameView',
-      config: helper.ontouch(
-        () => m.route(`/game/${ctrl.data.puzzle.gameId}/${ctrl.data.puzzle.color}`),
-        () => window.plugins.toast.show(i18n('fromGameLink', ctrl.data.puzzle.gameId), 'short', 'bottom')
-      )
-    }) : null,
-    m('button.training_action[data-icon=I]', {
-      config: helper.ontouch(ctrl.jumpPrev),
+    }),
+    m('button.action_bar_button.training_action.fa.fa-share-alt', {
+      key: 'sharePuzzle',
+      config: helper.ontouch(ctrl.share, () => window.plugins.toast.show('Share this puzzle', 'short', 'bottom'))
+    }),
+    m('button.action_bar_button.training_action[data-icon=I]', {
+      config: helper.ontouch(ctrl.jumpPrev, ctrl.jumpFirst),
       key: 'historyPrev',
       className: helper.classSet({
         disabled: !(step !== step - 1 && step - 1 >= 0 && step - 1 < history.length)
       })
     }),
-    m('button.training_action[data-icon=H]', {
-      config: helper.ontouch(ctrl.jumpNext),
+    m('button.action_bar_button.training_action[data-icon=H]', {
+      config: helper.ontouch(ctrl.jumpNext, ctrl.jumpLast),
       key: 'historyNext',
       className: helper.classSet({
         disabled: !(step !== step + 1 && step + 1 >= 0 && step + 1 < history.length)
@@ -154,7 +170,7 @@ function renderCommentary(ctrl) {
 }
 
 function renderRatingDiff(diff) {
-  return m('strong.rating', diff > 0 ? '+' + diff : diff);
+  return m('strong.puzzleRatingDiff', diff > 0 ? '+' + diff : diff);
 }
 
 function renderWin(ctrl, attempt) {
@@ -163,7 +179,7 @@ function renderWin(ctrl, attempt) {
       m('strong', i18n('victory')),
       attempt ? renderRatingDiff(attempt.userRatingDiff) : null
     ]),
-    attempt ? m('span', i18n('puzzleSolvedInXSeconds', attempt.seconds)) : null
+    attempt ? m('span.nbSeconds', i18n('puzzleSolvedInXSeconds', attempt.seconds)) : null
   ]);
 }
 

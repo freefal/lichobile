@@ -9,8 +9,9 @@ import helper from '../helper';
 import m from 'mithril';
 
 const storageKey = 'otb.current';
+export const storageFenKey = 'otb.setupFen';
 
-export default function controller(cfg) {
+export default function controller() {
 
   helper.analyticsTrackView('On The Board');
 
@@ -50,7 +51,11 @@ export default function controller(cfg) {
   }.bind(this);
 
   this.init = function(data, situations, ply) {
-    this.data = data || makeData(cfg);
+    this.data = data || makeData({
+      pref: {
+        centerPiece: true
+      }
+    });
     if (!this.chessground)
       this.chessground = ground.make(this.data, this.data.game.fen, userMove, onMove);
     else ground.reload(this.chessground, this.data, this.data.game.fen);
@@ -63,7 +68,10 @@ export default function controller(cfg) {
 
   this.initAs = function(color) {
     this.init(makeData({
-      color: color
+      color: color,
+      pref: {
+        centerPiece: true
+      }
     }));
   }.bind(this);
 
@@ -84,8 +92,18 @@ export default function controller(cfg) {
 
   this.firstPly = () => 0;
 
+  const setupFen = storage.get(storageFenKey);
   var saved = storage.get(storageKey);
-  if (saved) this.init(saved.data, saved.situations, saved.ply);
+  if (setupFen) {
+    this.init(makeData({
+      fen: setupFen,
+      color: 'white',
+      pref: {
+        centerPiece: true
+      }
+    }));
+    storage.remove(storageFenKey);
+  } else if (saved) this.init(saved.data, saved.situations, saved.ply);
   else this.init();
 
   window.plugins.insomnia.keepAwake();

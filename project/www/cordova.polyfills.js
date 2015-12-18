@@ -14,10 +14,27 @@
     trackView: noop
   };
 
+  // push
+  window.PushNotification = {
+    init: function() {
+      return {
+        on: noop,
+        off: noop,
+        unregister: noop,
+        finish: noop
+      };
+    }
+  };
+
   // events
   document.addEventListener('DOMContentLoaded', function() {
     document.dispatchEvent(new window.Event('deviceready'));
   }, false);
+
+  // backbutton emulation
+  window.backbutton = function() {
+    document.dispatchEvent(new window.Event('backbutton'));
+  };
 
   // keyboard
   window.cordova.plugins.Keyboard = {

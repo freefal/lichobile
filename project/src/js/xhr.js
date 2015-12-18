@@ -1,28 +1,31 @@
-import * as utils from './utils';
-import { request, apiVersion } from './http';
+import { request, apiVersion, lichessSri } from './http';
 import settings from './settings';
 import i18n from './i18n';
 import session from './session';
 
-export function newAiGame() {
-  var config = settings.game.ai;
+export function newAiGame(fen) {
+  const config = settings.gameSetup.ai;
+  const data = {
+    variant: config.variant(),
+    timeMode: config.timeMode(),
+    days: config.days(),
+    time: config.time(),
+    increment: config.increment(),
+    level: config.level(),
+    color: config.color()
+  };
+
+  if (fen) data.fen = fen;
+
   return request('/setup/ai', {
     method: 'POST',
-    data: {
-      variant: config.variant(),
-      timeMode: config.timeMode(),
-      days: config.days(),
-      time: config.time(),
-      increment: config.increment(),
-      level: config.level(),
-      color: config.color()
-    }
+    data
   }, true);
 }
 
 export function seekGame() {
-  var config = settings.game.human;
-  return request('/setup/hook/' + utils.lichessSri, {
+  var config = settings.gameSetup.human;
+  return request('/setup/hook/' + lichessSri, {
     method: 'POST',
     data: {
       variant: config.variant(),
@@ -32,25 +35,30 @@ export function seekGame() {
       increment: config.increment(),
       color: 'random',
       mode: session.isConnected() ? config.mode() : '0',
+      membersOnly: config.membersOnly(),
       ratingRange: config.ratingMin() + '-' + config.ratingMax()
     }
   }, true);
 }
 
-export function inviteFriend(userId) {
-  var config = settings.game.challenge;
+export function inviteFriend(userId, fen) {
+  const config = settings.gameSetup.challenge;
+  const data = {
+    user: userId,
+    variant: config.variant(),
+    timeMode: config.timeMode(),
+    days: config.days(),
+    time: config.time(),
+    increment: config.increment(),
+    color: config.color(),
+    mode: session.isConnected() ? config.mode() : '0'
+  };
+
+  if (fen) data.fen = fen;
+
   return request('/setup/friend', {
     method: 'POST',
-    data: {
-      user: userId,
-      variant: config.variant(),
-      timeMode: config.timeMode(),
-      days: config.days(),
-      time: config.time(),
-      increment: config.increment(),
-      color: config.color(),
-      mode: session.isConnected() ? config.mode() : '0'
-    }
+    data
   }, true);
 }
 
@@ -96,6 +104,17 @@ export function toggleGameBookmark(id) {
 
 export function featured(channel, flip) {
   return request('/tv/' + channel, flip ? { data: { flip: 1 }} : {});
+}
+
+export function setServerLang(lang) {
+  if (session.isConnected()) {
+    return request('/translation/select', {
+      method: 'POST',
+      data: {
+        lang
+      }
+    });
+  }
 }
 
 export function status() {

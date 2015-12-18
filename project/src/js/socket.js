@@ -1,14 +1,23 @@
 import assign from 'lodash/object/assign';
+import storage from './storage';
 import StrongSocket from './StrongSocket';
 import * as utils from './utils';
 import * as xhr from './xhr';
 import i18n from './i18n';
 import friendsApi from './lichess/friends';
 import challengesApi from './lichess/challenges';
+import session from './session';
+import signals from './signals';
 import m from 'mithril';
 
 var socketInstance;
 var errorDetected = false;
+var connectedWS = true;
+
+var alreadyWarned = false;
+var redrawOnDisconnectedTimeoutID;
+var proxyFailTimeoutID;
+const proxyFailMsg = 'The connection to lichess server has failed. If the problem is persistent this may be caused by proxy or network issues. In that case, we\'re sorry: lichess online features such as games, connected friends or challenges won\'t work.';
 
 const defaultHandlers = {
   following_onlines: data => utils.autoredraw(utils.partialf(friendsApi.set, data)),
@@ -27,10 +36,10 @@ function destroy() {
   }
 }
 
-function createGame(url, version, receiveHandler, gameUrl) {
+function createGame(url, version, receiveHandler, gameUrl, userTv) {
   errorDetected = false;
   destroy();
-  socketInstance = new StrongSocket(url, version, {
+  const opts = {
     options: {
       name: 'game',
       debug: window.lichess.mode !== 'prod',
@@ -43,7 +52,7 @@ function createGame(url, version, receiveHandler, gameUrl) {
           // websocket is trying to reconnect
           errorDetected = true;
           xhr.game(gameUrl.substring(1)).then(function() {}, function(err) {
-            if (err.message === 'unauthorizedError') {
+            if (err.status === 401) {
               window.plugins.toast.show(i18n('unauthorizedError'), 'short', 'center');
               m.route('/');
             }
@@ -54,7 +63,9 @@ function createGame(url, version, receiveHandler, gameUrl) {
     },
     events: defaultHandlers,
     receive: receiveHandler
-  });
+  };
+  if (userTv) opts.params = { userTv };
+  socketInstance = new StrongSocket(url, version, opts);
 }
 
 function createAwait(url, version, handlers) {
@@ -94,19 +105,55 @@ function createLobby(lobbyVersion, onOpen, handlers) {
 }
 
 function createDefault() {
-  destroy();
-  socketInstance = new StrongSocket(
-    '/socket', 0, {
-      options: {
-        name: 'default',
-        debug: window.lichess.mode !== 'prod',
-        pingDelay: 2000,
-        onOpen: () => socketInstance.send('following_onlines')
-      },
-      events: defaultHandlers
-    }
-  );
+  // default socket is useless when anon.
+  if (utils.hasNetwork() && session.isConnected()) {
+    destroy();
+    socketInstance = new StrongSocket(
+      '/socket', 0, {
+        options: {
+          name: 'default',
+          debug: window.lichess.mode !== 'prod',
+          pingDelay: 2000,
+          onOpen: () => socketInstance.send('following_onlines')
+        },
+        events: defaultHandlers
+      }
+    );
+  }
 }
+
+function onConnected() {
+  const wasOff = !connectedWS;
+  connectedWS = true;
+  clearTimeout(proxyFailTimeoutID);
+  clearTimeout(redrawOnDisconnectedTimeoutID);
+  if (wasOff) m.redraw();
+}
+
+function onDisconnected() {
+  const wasOn = connectedWS;
+  connectedWS = false;
+  if (wasOn) redrawOnDisconnectedTimeoutID = setTimeout(function() {
+    m.redraw();
+  }, 2000);
+  if (wasOn && !alreadyWarned && !storage.get('donotshowproxyfailwarning')) proxyFailTimeoutID = setTimeout(() => {
+    // check if disconnection lasts, it could mean a proxy prevents
+    // establishing a tunnel
+    if (utils.hasNetwork() && !connectedWS) {
+      alreadyWarned = true;
+      window.navigator.notification.alert(proxyFailMsg, function() {
+        storage.set('donotshowproxyfailwarning', true);
+      });
+    }
+  }, 20000);
+}
+
+document.addEventListener('deviceready', () => {
+  document.addEventListener('pause', () => clearTimeout(proxyFailTimeoutID), false);
+}, false);
+
+signals.socket.connected.add(onConnected);
+signals.socket.disconnected.add(onDisconnected);
 
 export default {
   createGame,
@@ -127,6 +174,9 @@ export default {
   },
   disconnect() {
     if (socketInstance) socketInstance.destroy();
+  },
+  isConnected() {
+    return connectedWS;
   },
   destroy
 };

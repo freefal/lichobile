@@ -7,7 +7,7 @@ import * as utils from '../../utils';
 import socket from '../../socket';
 import m from 'mithril';
 
-export default function(ctrl, onFeatured) {
+export default function(ctrl, onFeatured, onUserTVRedirect) {
 
   var handlers = {
     takebackOffers: function(o) {
@@ -31,12 +31,16 @@ export default function(ctrl, onFeatured) {
       if (!ctrl.data.tv) m.route('/game/' + e.id);
     },
     resync: function() {
-      xhr.reload(ctrl).then(function(data) {
-        socket.setVersion(data.player.version);
-        ctrl.reload(data);
-      }, function(err) {
-        utils.handleXhrError(err);
-      });
+      if (onUserTVRedirect) {
+        onUserTVRedirect();
+      } else {
+        xhr.reload(ctrl).then(function(data) {
+          socket.setVersion(data.player.version);
+          ctrl.reload(data);
+        }, function(err) {
+          utils.handleXhrError(err);
+        });
+      }
     },
     clock: function(o) {
       if (ctrl.clock) ctrl.clock.update(o.white, o.black);
@@ -47,9 +51,8 @@ export default function(ctrl, onFeatured) {
       xhr.reload(ctrl).then(ctrl.reload);
       if (!ctrl.data.player.spectator) sound.dong();
       window.plugins.insomnia.allowSleepAgain();
-      // refresh current games card list
-      if (session.isConnected()) session.refresh();
       setTimeout(function() {
+        session.refresh();
         ctrl.showActions();
         m.redraw();
       }, 1000);

@@ -1,5 +1,7 @@
 /* application entry point */
 
+import './polyfills';
+
 // for moment a global object makes loading locales easier
 import moment from 'moment';
 window.moment = moment;
@@ -8,33 +10,24 @@ import m from 'mithril';
 import * as utils from './utils';
 import session from './session';
 import i18n, { loadPreferredLanguage } from './i18n';
-import { status as xhrStatus } from './xhr';
+import settings from './settings';
+import { status as xhrStatus, setServerLang } from './xhr';
 import helper from './ui/helper';
 import backbutton from './backbutton';
 import storage from './storage';
 import socket from './socket';
+import push from './push';
 import routes from './routes';
 
 var triedToLogin = false;
-
-const refreshInterval = 60000 * 2; // 2 minutes refresh polling
-var refreshIntervalID;
 
 function main() {
 
   routes.init();
 
-  // open games from external links with url scheme (lichess://gameId)
+  // open games from external links with url scheme
   window.handleOpenURL = function(url) {
-    setTimeout(function() {
-      var parsed = url.match(/^lichess:\/\/(\w+)\/?(black|white)?/);
-      var gameId = parsed[1];
-      var color = parsed[2];
-      if (!gameId) return;
-      var route = '/game/' + gameId;
-      if (color) route += ('/' + color);
-      m.route(route);
-    }, 0);
+    setTimeout(onUrlOpen.bind(undefined, url), 0);
   };
 
   // iOs needs this to auto-rotate
@@ -50,8 +43,6 @@ function main() {
   else {
     window.plugins.toast.show(i18n('noInternetConnection'), 'short', 'center');
   }
-
-  refreshIntervalID = setInterval(refresh, refreshInterval);
 
   document.addEventListener('online', onOnline, false);
   document.addEventListener('offline', onOffline, false);
@@ -73,8 +64,29 @@ function main() {
   }, 500);
 }
 
-function refresh() {
-  if (utils.hasNetwork() && session.isConnected()) session.refresh();
+function onUrlOpen(url) {
+  const uris = [
+    {
+      reg: /^lichess:\/\/training\/(\d+)/,
+      ctrl: (id) => m.route(`/training/${id}`)
+    },
+    {
+      reg: /^lichess:\/\/(\w+)\/?(black|white)?/,
+      ctrl: (gameId, color) => {
+        let route = '/game/' + gameId;
+        if (color) route += ('/' + color);
+        m.route(route);
+      }
+    }
+  ];
+  for (var i = 0; i <= uris.length; i++) {
+    const r = uris[i];
+    const parsed = r.reg.exec(url);
+    if (parsed !== null) {
+      r.ctrl.apply(null, parsed.slice(1));
+      break;
+    }
+  }
 }
 
 function onResize() {
@@ -82,19 +94,9 @@ function onResize() {
   m.redraw();
 }
 
-function onResume() {
-  refresh();
-  refreshIntervalID = setInterval(refresh, refreshInterval);
-  socket.connect();
-}
-
-function onPause() {
-  clearInterval(refreshIntervalID);
-  socket.disconnect();
-}
-
 function onOnline() {
   session.rememberLogin().then(() => {
+    // first time login on app start or just try to reconnect socket
     if (/^\/$/.test(m.route()) && !triedToLogin) {
       triedToLogin = true;
       var nowPlaying = session.nowPlaying();
@@ -103,23 +105,35 @@ function onOnline() {
       else
         socket.createDefault();
       window.plugins.toast.show(i18n('connectedToLichess'), 'short', 'center');
+    } else {
+      socket.connect();
     }
   }, err => {
     if (/^\/$/.test(m.route()) && !triedToLogin) {
       // means user is anonymous here
-      if (err.message === 'unauthorizedError') {
+      if (err.status === 401) {
         triedToLogin = true;
         var lastPlayedAnon = storage.get('lastPlayedGameURLAsAnon');
         if (lastPlayedAnon) m.route('/game' + lastPlayedAnon);
-        window.plugins.toast.show(i18n('connectedToLichess'), 'short', 'center');
       }
     }
   })
-  .then(m.redraw);
+  .then(m.redraw)
+  .then(push.register)
+  .then(() => setServerLang(settings.general.lang()));
 }
 
 function onOffline() {
+  socket.disconnect();
   m.redraw();
+}
+
+function onResume() {
+  socket.connect();
+}
+
+function onPause() {
+  socket.disconnect();
 }
 
 function handleError(event, source, fileno, columnNumber) {

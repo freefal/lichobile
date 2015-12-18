@@ -8,8 +8,7 @@ export function autoredraw(action) {
 }
 
 export function hasNetwork() {
-  var t = window.navigator.connection.type;
-  return t !== window.Connection.NONE && t !== window.Connection.UNKNOWN;
+  return window.navigator.connection.type !== window.Connection.NONE;
 }
 
 export function handleXhrError(error) {
@@ -18,7 +17,7 @@ export function handleXhrError(error) {
     window.plugins.toast.show(i18n('noInternetConnection'), 'short', 'center');
   } else {
     let message;
-    if (status === 0)
+    if (!status || status === 0)
       message = 'noInternetConnection';
     else if (status === 401)
       message = 'unauthorizedError';
@@ -31,13 +30,15 @@ export function handleXhrError(error) {
     else
       message = 'Error';
 
-    if (typeof data.error === 'string') message += `: ${data.error}`;
+    message = i18n(message);
 
-    window.plugins.toast.show(i18n(message), 'short', 'center');
+    if (typeof data === 'string') message += ` ${data}`;
+    else if (data.global && data.global.constructor === Array) message += ` ${data.global[0]}`;
+    else if (typeof data.error === 'string') message += ` ${data.error}`;
+
+    window.plugins.toast.show(message, 'short', 'center');
   }
 }
-
-export const lichessSri = Math.random().toString(36).substring(2);
 
 export function serializeQueryParameters(obj) {
   var str = '';
@@ -141,4 +142,23 @@ export function userFullNameToId(fullName) {
 
 export function capitalize(string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
+}
+
+export function loadJsonFile(filename) {
+  return m.request({
+    url: filename,
+    method: 'GET',
+    deserialize: function(text) {
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        throw { error: 'Error when parsing json from: ' + filename };
+      }
+    }
+  });
+}
+
+// Returns a random number between min (inclusive) and max (exclusive)
+export function getRandomArbitrary(min, max) {
+  return Math.random() * (max - min) + min;
 }
