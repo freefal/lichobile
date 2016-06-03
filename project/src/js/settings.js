@@ -80,6 +80,7 @@ export default {
     flipPieces: localstorageprop('settings.otb.flipPieces', false),
     useSymmetric: localstorageprop('settings.otb.useSymmetric', true),
     variant: localstorageprop('settings.otb.variant', 'standard'),
+    clockType: localstorageprop('settings.otb.clockType', 'no'),
     availableVariants: [
       ['Standard', 'standard'],
       ['Chess960', 'chess960'],

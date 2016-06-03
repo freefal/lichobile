@@ -4,6 +4,7 @@ import formWidgets from '../shared/form';
 import popupWidget from '../shared/popup';
 import helper from '../helper';
 import backbutton from '../../backbutton';
+import clock from './clock';
 
 export default {
 
@@ -42,6 +43,10 @@ export default {
                 <div className="select_input">
                   {formWidgets.renderSelect('variant', 'variant', settings.otb.availableVariants, settings.otb.variant)}
                 </div>
+                <div className="select_input">
+                  {formWidgets.renderSelect('Clock', 'clock', clock.clockTypes, settings.otb.clockType)}
+                </div>
+                {settings.otb.clockType}
               </div>
               <button className="newGameButton" data-icon="E"
                 config={helper.ontouch(() => ctrl.root.startNewGame())}>
@@ -58,4 +63,3 @@ export default {
     return null;
   }
 };
-
