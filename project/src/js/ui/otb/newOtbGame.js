@@ -1,3 +1,4 @@
+import m from 'mithril';
 import i18n from '../../i18n';
 import settings from '../../settings';
 import formWidgets from '../shared/form';
@@ -32,6 +33,7 @@ export default {
   },
 
   view: function(ctrl) {
+    console.log(settings.otb.clockType());
     if (ctrl.isOpen()) {
       return popupWidget(
         'new_offline_game',
@@ -44,9 +46,9 @@ export default {
                   {formWidgets.renderSelect('variant', 'variant', settings.otb.availableVariants, settings.otb.variant)}
                 </div>
                 <div className="select_input">
-                  {formWidgets.renderSelect('Clock', 'clock', clock.clockTypes, settings.otb.clockType)}
+                  {formWidgets.renderSelect('Clock', 'clock', settings.otb.availableClocks, settings.otb.clockType, false, () => m.redraw())}
                 </div>
-                {settings.otb.clockType}
+                {clock.clockSettingsView[settings.otb.clockType()]()}
               </div>
               <button className="newGameButton" data-icon="E"
                 config={helper.ontouch(() => ctrl.root.startNewGame())}>

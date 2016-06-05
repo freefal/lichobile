@@ -80,7 +80,6 @@ export default {
     flipPieces: localstorageprop('settings.otb.flipPieces', false),
     useSymmetric: localstorageprop('settings.otb.useSymmetric', true),
     variant: localstorageprop('settings.otb.variant', 'standard'),
-    clockType: localstorageprop('settings.otb.clockType', 'no'),
     availableVariants: [
       ['Standard', 'standard'],
       ['Chess960', 'chess960'],
@@ -90,7 +89,22 @@ export default {
       ['Atomic', 'atomic'],
       ['Horde', 'horde'],
       ['Racing Kings', 'racingKings']
-    ]
+    ],
+    availableClocks: [
+      ['None', 'no'], ['Sudden Death', 'simple'], ['Increment', 'increment'], ['Delay', 'delay']
+    ],
+    clockType: localstorageprop('settings.otb.clockType', 'None'),
+    simple: {
+      time: localstorageprop('settings.otb.simple.time', 'None')
+    },
+    increment: {
+      time: localstorageprop('settings.otb.increment.time', 'None'),
+      increment: localstorageprop('settings.otb.increment.increment', 'None')
+    },
+    delay: {
+      time: localstorageprop('settings.otb.delay.time', 'None'),
+      increment: localstorageprop('settings.otb.delay.increment', 'None')
+    }
   },
 
   ai: {

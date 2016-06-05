@@ -11,6 +11,7 @@ import { getBoardBounds } from '../../utils';
 import actions from './actions';
 import newGameMenu from './newOtbGame';
 import settings from '../../settings';
+import { view as renderClock } from '../round/clock/clockView';
 
 export default function view(ctrl) {
 
@@ -70,6 +71,7 @@ function renderContent(ctrl, pieceTheme) {
       renderAntagonist(ctrl, opponentName, material[ctrl.data.opponent.color], 'opponent', isPortrait),
       board,
       renderAntagonist(ctrl, playerName, material[ctrl.data.player.color], 'player', isPortrait),
+      renderClock(ctrl.clock, player.color, runningColor),
       renderGameActionsBar(ctrl, 'otb')
     ];
   else
@@ -85,4 +87,3 @@ function renderContent(ctrl, pieceTheme) {
       </section>
     ];
 }
-
