@@ -195,8 +195,8 @@ function renderEvalBox(ctrl) {
   return (
     <div className="cevalBox">
       { pearl }
-      <div className="cevalBar">
-        <span style={{ width: percent + '%' }}></span>
+      <div className={'cevalBar' + (percent === 0 ? ' reset' : '')}>
+          <span style={{ width: percent + '%' }}></span>
       </div>
       { ctrl.data.analysis ?
         <div className="openSummary" config={helper.ontouch(ctrl.evalSummary.open)}>
