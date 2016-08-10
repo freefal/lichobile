@@ -191,7 +191,7 @@ function renderEvalBox(ctrl) {
     pearl = <pearl>-</pearl>;
     percent = 0;
   }
-
+  console.log(percent);
   return (
     <div className="cevalBox">
       { pearl }

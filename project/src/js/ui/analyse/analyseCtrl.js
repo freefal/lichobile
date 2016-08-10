@@ -331,6 +331,9 @@ export default function controller() {
 
   function onCevalMsg(res) {
     this.analyse.updateAtPath(res.work.path, step => {
+      console.log('stop condition: ' + (step.ceval && step.ceval.depth >= res.ceval.depth));
+      console.log(step.ceval);
+      console.log(res.ceval);
       if (step.ceval && step.ceval.depth >= res.ceval.depth) return;
       step.ceval = res.ceval;
       // even if we don't need the san move this ensure correct arrows are
@@ -341,6 +344,7 @@ export default function controller() {
         dest: res.ceval.best.slice(2, 4)
       }).then(data => {
         step.ceval.bestSan = data.situation.pgnMoves[0];
+        console.log('redraw? ' + (treePath.write(res.work.path) === this.vm.pathStr));
         if (treePath.write(res.work.path) === this.vm.pathStr) {
           m.redraw();
         }
