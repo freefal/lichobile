@@ -32,3 +32,7 @@ export function syncNote(gameId: string, notes: string) {
     throw err
   })
 }
+
+export function challengeRematch(gameId: string) {
+  return fetchJSON('/challenge/rematch-of/' + gameId, { method: 'POST' }, true)
+}

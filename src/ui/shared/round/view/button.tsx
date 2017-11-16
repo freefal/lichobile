@@ -12,6 +12,7 @@ import socket from '../../../../socket'
 import lobby from '../../../lobby'
 import * as helper from '../../../helper'
 import * as tournamentXhr from '../../../tournament/tournamentXhr'
+import * as roundXhr from '../roundXhr'
 import { getPGN } from '../roundXhr'
 import OnlineRound from '../OnlineRound'
 
@@ -211,11 +212,35 @@ export default {
   },
   rematch: function(ctrl: OnlineRound) {
     const d = ctrl.data
-    const rematchable = !d.game.rematch && (gameStatus.finished(d) || gameStatus.aborted(d)) && !d.game.tournamentId && !d.game.boosted && (d.opponent.onGame || (!d.clock && d.player.user && d.opponent.user))
-    if (!ctrl.data.opponent.offeringRematch && !ctrl.data.player.offeringRematch && rematchable) {
+    console.log(d)
+    const noExistingRematch = !ctrl.data.opponent.offeringRematch && !ctrl.data.player.offeringRematch
+    const generalCriteria = !d.game.rematch && !d.game.tournamentId && !d.game.boosted
+    const gameOver = (gameStatus.finished(d) || gameStatus.aborted(d))
+    const onlineCriteria = d.opponent.onGame || (!d.clock && d.player.user && d.opponent.user && !d.correspondence)
+    const onlineRematchable = noExistingRematch && generalCriteria && gameOver && onlineCriteria
+    console.log(d.opponent.onGame)
+
+    const offlineCriteria = !d.opponent.onGame && d.correspondence
+    const offlineRematchable = noExistingRematch && generalCriteria && gameOver && offlineCriteria
+
+    function rematchAction () {
+      console.log('hello')
+      if (onlineRematchable) {
+        console.log('hello2')
+        socket.send('rematch-yes')
+      }
+      else {
+        if (offlineRematchable) {
+          console.log('hello3')
+          roundXhr.challengeRematch(d.game.id).then((data: any) => console.log(data))
+        }
+      }
+    }
+
+    if (onlineRematchable || offlineRematchable) {
       return h('button', {
         key: 'rematch',
-        oncreate: helper.ontap(() => { socket.send('rematch-yes') })
+        oncreate: helper.ontap(rematchAction)
       }, [h('span.fa.fa-refresh'), i18n('rematch')])
     } else {
       return null
