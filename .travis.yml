@@ -1,4 +1,38 @@
-language: node_js
-node_js:
-  - "lts/*"
-script: "npm run build-stage"
+language: android
+android:
+   components:
+      - tools
+      - platform-tools
+      - build-tools-26.0.2
+      - android-26
+      - extra-google-google_play_services
+      - extra-google-m2repository
+      - extra-android-m2repository
+sudo: false
+jdk:
+    - oraclejdk8
+env:
+    global:
+      - ANDROID_TOOLS=${ANDROID_HOME}/tools
+before_install:
+  - nvm install 8.10.0
+  - wget http://services.gradle.org/distributions/gradle-3.3-bin.zip
+  - unzip gradle-3.3-bin.zip
+  - export GRADLE_HOME=$PWD/gradle-3.3
+  - curl -L http://dl.google.com/android/repository/android-ndk-r16b-linux-x86_64.zip -O
+  - unzip -oq android-ndk-r16b-linux-x86_64.zip
+  - export ANDROID_NDK_HOME=$PWD/android-ndk-r16b
+  - export PATH=${GRADLE_HOME}/bin:${ANDROID_HOME}:${ANDROID_HOME}/emulator:${ANDROID_TOOLS}:${ANDROID_TOOLS}/bin:${ANDROID_HOME}/platform-tools:${ANDROID_NDK_HOME}:$PATH
+  - node --version
+  - gradle --version
+  - cp env.json.example env-stage.json
+install:
+    - npm install -g cordova
+    - npm install
+    - cordova platform add android
+script:
+  - ndk-build -C platforms/android
+  - npm run lint
+  - npm run test
+  - npm run android-stage
+  - test -e platforms/android/build/outputs/apk/android-armv7-debug.apk
