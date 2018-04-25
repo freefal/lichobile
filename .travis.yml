@@ -30,8 +30,6 @@ install:
   - npm -v
   - cordova -v
   - cordova platform add android
-  - mkdir platforms/android/res
-  - mkdir platforms/android/res/xml
 script:
   - ndk-build -C platforms/android
   - npm run lint
