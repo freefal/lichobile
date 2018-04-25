@@ -31,5 +31,6 @@ install:
   - cordova platform add android
 script:
   - ndk-build -C platforms/android
+  - cordova -v
   - npm run android-stage
   - test -e platforms/android/build/outputs/apk/android-armv7-debug.apk
