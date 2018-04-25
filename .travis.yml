@@ -27,6 +27,7 @@ before_install:
   - gradle --version
   - cp env.json.example env-stage.json
 install:
+    - npm install -g npm
     - npm install -g cordova
     - npm install
     - cordova platform add android
