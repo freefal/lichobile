@@ -24,7 +24,7 @@ before_install:
   - gradle --version
 install:
   - npm install -g npm@5.8.0
-  - npm install -g cordova@7.1.0
+  - npm install -g cordova@8.0.0
   - npm install
   - cordova platform add android
 script:
