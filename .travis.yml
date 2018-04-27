@@ -24,13 +24,9 @@ before_install:
   - gradle --version
 install:
   - npm install -g npm@5.8.0
-  - npm install -g cordova
-  - npm -v
-  - cordova -v
+  - npm install -g cordova@7.1.0
   - npm install
   - cordova platform add android
 script:
-  - ndk-build -C platforms/android
-  - cordova -v
   - npm run android-stage
   - test -e platforms/android/build/outputs/apk/android-armv7-debug.apk
