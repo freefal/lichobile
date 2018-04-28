@@ -17,7 +17,7 @@ export interface TreeWrapper {
   addNode(node: Tree.Node, path: Tree.Path): Tree.Path | undefined
   addNodes(nodes: Tree.Node[], path: Tree.Path): Tree.Path | undefined
   addDests(dests: string, path: Tree.Path, opening?: Tree.Opening): MaybeNode
-  setShapes(shapes: Tree.Shape[], path: Tree.Path): MaybeNode
+  setShapes(shapes: ReadonlyArray<Tree.Shape>, path: Tree.Path): MaybeNode
   setCommentAt(comment: Tree.Comment, path: Tree.Path): MaybeNode
   deleteCommentAt(id: string, path: Tree.Path): MaybeNode
   setGlyphsAt(glyphs: Tree.Glyph[], path: Tree.Path): MaybeNode
@@ -232,7 +232,7 @@ export function build(root: Tree.Node): TreeWrapper {
         if (opening) node.opening = opening
       })
     },
-    setShapes(shapes: Tree.Shape[], path: Tree.Path): MaybeNode {
+    setShapes(shapes: ReadonlyArray<Tree.Shape>, path: Tree.Path): MaybeNode {
       return updateAt(path, (node: Tree.Node) => {
         node.shapes = shapes
       })

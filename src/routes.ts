@@ -36,6 +36,8 @@ import inboxThread from './ui/inbox/thread'
 import inboxCompose from './ui/inbox/compose'
 import importer from './ui/importer'
 import search from './ui/search'
+import studyList from './ui/study'
+import study from './ui/study/study'
 import about from './ui/about'
 import { defineRoutes } from './router'
 
@@ -93,7 +95,10 @@ export default {
       'training': training,
       'training/:id': training,
       'tournament': tournamentsList,
-      'tournament/:id': tournamentDetail
+      'tournament/:id': tournamentDetail,
+      'study': studyList,
+      'study/:id': study,
+      'study/:id/chapter/:chapterId': study,
     })
   }
 }

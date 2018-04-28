@@ -2,27 +2,28 @@ import * as h from 'mithril/hyperscript'
 
 import socket from '../../socket'
 import session, { Session } from '../../session'
+import i18n from '../../i18n'
+import { hasNetwork, noop } from '../../utils'
+import { getOfflineGames } from '../../utils/offlineGames'
+import friendsApi from '../../lichess/friends'
+
 import loginModal from '../loginModal'
 import newGameForm from '../newGameForm'
 import gamesMenu from '../gamesMenu'
 import friendsPopup from '../friendsPopup'
 import challengeForm from '../challengeForm'
 import playMachineForm from '../playMachineForm'
-import i18n from '../../i18n'
-import { hasNetwork, noop } from '../../utils'
-import { getOfflineGames } from '../../utils/offlineGames'
 import * as helper from '../helper'
-import friendsApi from '../../lichess/friends'
+import CloseSlideHandler from '../shared/sideMenu/CloseSlideHandler'
+import CloseSwipeHandler from '../shared/sideMenu/CloseSwipeHandler'
 
 import * as menu from '.'
-import CloseSlideHandler from './CloseSlideHandler'
-import CloseSwipeHandler from './CloseSwipeHandler'
 
 const pingHelp = 'PING: Network lag between you and lichess; SERVER: Time to process a move on lichess server'
 
 export default {
   onbeforeupdate() {
-    return menu.isOpen() || menu.isSliding()
+    return menu.mainMenuCtrl.isOpen
   },
   view() {
     const user = session.get()
@@ -31,15 +32,14 @@ export default {
       <aside id="side_menu"
         oncreate={({ dom }: Mithril.DOMNode) => {
           if (window.cordova.platformId === 'ios') {
-            CloseSwipeHandler(dom as HTMLElement)
+            CloseSwipeHandler(dom as HTMLElement, menu.mainMenuCtrl)
           } else {
-            CloseSlideHandler(dom as HTMLElement)
+            CloseSlideHandler(dom as HTMLElement, menu.mainMenuCtrl)
           }
         }}
       >
-        <div className="native_scroller">
-          {renderHeader(user)}
-          { hasNetwork() && user ? profileActionsToggle() : null }
+        {renderHeader(user)}
+        <div className="native_scroller side_menu_scroller">
           {user && menu.profileMenuOpen() ? renderProfileActions(user) : renderLinks(user)}
         </div>
       </aside>
@@ -67,6 +67,7 @@ function renderHeader(user?: Session) {
         </h2> : null
       }
       { networkStatus(user) }
+      { hasNetwork() && user ? profileActionsToggle() : null }
     </header>
   )
 }
@@ -114,13 +115,9 @@ const popupActionMap: { [index: string]: () => void } = {
   machine: () => playMachineForm.open()
 }
 
-interface MenuLinkDataset extends DOMStringMap {
-  route?: string
-  popup?: string
-}
 function onLinkTap(e: Event) {
   const el = helper.getLI(e)
-  const ds = el.dataset as MenuLinkDataset
+  const ds = el.dataset
   if (el && ds.route) {
     menu.route(ds.route)()
   } else if (el && ds.popup) {
@@ -174,10 +171,21 @@ function renderLinks(user?: Session) {
         <span className="fa fa-trophy"/>{i18n('tournament')}
       </li> : null
       }
+      <li className="sep_link" key="sep_link_online">{i18n('learn')}</li>
       {hasNetwork() ?
-      <li className="side_link" key="training" data-route="/training">
-        <span data-icon="-"/>{i18n('training')}
-      </li> : null
+        <li className="side_link" key="training" data-route="/training">
+          <span data-icon="-"/>{i18n('training')}
+        </li> : null
+      }
+      {!hasNetwork() && user ?
+        <li className="side_link" key="training" data-route="/training">
+          <span data-icon="-" />{i18n('training')}
+        </li> : null
+      }
+      {hasNetwork() ?
+        <li className="side_link" key="study" data-route="/study">
+          <span data-icon="4" />Study
+        </li> : null
       }
       {hasNetwork() ?
       <li className="sep_link" key="sep_link_community">
@@ -202,11 +210,6 @@ function renderLinks(user?: Session) {
       <li className="sep_link" key="sep_link_offline">
         {i18n('playOffline')}
       </li>
-      {!hasNetwork() && user ?
-        <li className="side_link" key="training" data-route="/training">
-          <span data-icon="-" />{i18n('training')}
-        </li> : null
-      }
       <li className="side_link" key="play_ai" data-route="/ai">
         <span className="fa fa-cogs"/>{i18n('playOfflineComputer')}
       </li>
@@ -260,31 +263,29 @@ function networkStatus(user?: Session) {
   const ping = menu.ping()
   const server = menu.mlat()
   return (
-    <div key="server-lag" className="pingServerLed"
+    <div key="server-lag" className="pingServer"
       oncreate={helper.ontapXY(() => window.plugins.toast.show(pingHelp, 'long', 'top'))}
     >
-      <div className="pingServer">
-        { signalBars(hasNetwork() ? ping : undefined)}
-        { hasNetwork() ? (
+      { signalBars(hasNetwork() ? ping : undefined)}
+      { hasNetwork() ? (
+          <div>
             <div>
+              <span className="pingKey">Ping&nbsp;&nbsp;&nbsp;</span>
+              <strong className="pingValue">{socket.isConnected() && ping ? ping : '?'}</strong> ms
+            </div>
+            { user ?
               <div>
-                <span className="pingKey">Ping&nbsp;&nbsp;&nbsp;</span>
-                <strong className="pingValue">{socket.isConnected() && ping ? ping : '?'}</strong> ms
-              </div>
-              { user ?
-                <div>
-                  <span className="pingKey">Server&nbsp;</span>
-                  <strong className="pingValue">{socket.isConnected() && server ? server : '?'}</strong> ms
-                </div> : null
-              }
-            </div>
-          ) : (
-            <div>
-              Offline
-            </div>
-          )
-        }
-      </div>
+                <span className="pingKey">Server&nbsp;</span>
+                <strong className="pingValue">{socket.isConnected() && server ? server : '?'}</strong> ms
+              </div> : null
+            }
+          </div>
+        ) : (
+          <div>
+            Offline
+          </div>
+        )
+      }
     </div>
   )
 }

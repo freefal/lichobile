@@ -3,15 +3,23 @@ import router from '../../../router'
 import i18n from '../../../i18n'
 import settings from '../../../settings'
 import * as utils from '../../../utils'
+import { emptyFen } from '../../../utils/fen'
 import continuePopup from '../../shared/continuePopup'
+import spinner from '../../../spinner'
 import { view as renderPromotion } from '../../shared/offlineRound/promotion'
 import ViewOnlyBoard from '../../shared/ViewOnlyBoard'
 import { notesView } from '../../shared/round/notes'
 import { Bounds } from '../../shared/Board'
-import menu from '../menu'
-import analyseSettings from '../analyseSettings'
 import TabNavigation from '../../shared/TabNavigation'
+import { loadingBackbutton } from '../../shared/common'
+import * as helper from '../../helper'
+import layout from '../../layout'
 
+import menu from '../menu'
+import studyActionMenu from '../study/actionMenu'
+import renderPgnTags from '../study/pgnTagsView'
+import renderComments from '../study/commentView'
+import analyseSettings from '../analyseSettings'
 import { Tab } from '../tabs'
 import AnalyseCtrl from '../AnalyseCtrl'
 import renderCeval, { EvalBox } from '../ceval/cevalView'
@@ -20,12 +28,23 @@ import renderCrazy from '../crazy/crazyView'
 import { view as renderContextMenu } from '../contextMenu'
 import TabView from './TabView'
 import Replay from './Replay'
-import Clocks from './clocks'
 import retroView from '../retrospect/retroView'
-import renderGameAnalysis from './gameAnalysis'
+import renderAnalysis from './analysisView'
 import renderBoard from './boardView'
 import renderGameInfos from './gameInfosView'
 import renderActionsBar from './actionsView'
+
+export function loadingScreen(isPortrait: boolean, color?: Color, curFen?: string) {
+  const isSmall = settings.analyse.smallBoard()
+  const bounds = helper.getBoardBounds(helper.viewportDim(), isPortrait, isSmall)
+  return layout.board(
+    loadingBackbutton(),
+    [
+      viewOnlyBoard(color || 'white', bounds, isSmall, curFen || emptyFen),
+      h('div.analyse-tableWrapper', spinner.getVdom('monochrome'))
+    ]
+  )
+}
 
 export function renderContent(ctrl: AnalyseCtrl, isPortrait: boolean, bounds: Bounds) {
   const availTabs = ctrl.availableTabs()
@@ -40,16 +59,10 @@ export function renderContent(ctrl: AnalyseCtrl, isPortrait: boolean, bounds: Bo
   ])
 }
 
-export function viewOnlyBoard(color: Color, bounds: Bounds, isSmall: boolean, fen: string) {
-  return h('section.board_wrapper', {
-    className: isSmall ? 'halfsize' : ''
-  }, h(ViewOnlyBoard, { orientation: color, bounds, fen }))
-}
-
 export function overlay(ctrl: AnalyseCtrl) {
   return [
     renderPromotion(ctrl),
-    menu.view(ctrl.menu),
+    ctrl.study ? studyActionMenu.view(ctrl.study.actionMenu) : menu.view(ctrl.menu),
     analyseSettings.view(ctrl.settings),
     ctrl.notes ? notesView(ctrl.notes) : null,
     continuePopup.view(ctrl.continuePopup),
@@ -86,6 +99,12 @@ export function renderVariantSelector(ctrl: AnalyseCtrl) {
   )
 }
 
+function viewOnlyBoard(color: Color, bounds: Bounds, isSmall: boolean, fen: string) {
+  return h('section.board_wrapper', {
+    className: isSmall ? 'halfsize' : ''
+  }, h(ViewOnlyBoard, { orientation: color, bounds, fen }))
+}
+
 function renderOpening(ctrl: AnalyseCtrl) {
   const opening = ctrl.tree.getOpening(ctrl.nodeList) || ctrl.data.game.opening
   if (opening) return h('div', {
@@ -96,35 +115,47 @@ function renderOpening(ctrl: AnalyseCtrl) {
   ])
 }
 
-function renderAnalyseTabs(ctrl: AnalyseCtrl, availTabs: Tab[]) {
+function renderAnalyseTabs(ctrl: AnalyseCtrl, availTabs: ReadonlyArray<Tab>) {
 
   const curTab = ctrl.currentTab(availTabs)
+
+  const buttons = availTabs.map(b => {
+    if (b.id === 'comments' && ctrl.node.comments && ctrl.node.comments.length > 0) {
+      return {
+        ...b,
+        chip: ctrl.node.comments.length
+      }
+    }
+
+    return b
+  })
 
   return h('div.analyse-header', [
     curTab.id !== 'ceval' ? h(EvalBox, { ctrl }) : null,
     h('div.analyse-tabs', [
       h('div.tab-title', renderTabTitle(ctrl, curTab)),
       h(TabNavigation, {
-        buttons: availTabs,
+        buttons,
         selectedIndex: ctrl.currentTabIndex(availTabs),
-        onTabChange: ctrl.onTabChange
+        onTabChange: ctrl.onTabChange,
+        wrapperClass: 'analyse'
       })
     ])
   ])
 }
 
 function renderTabTitle(ctrl: AnalyseCtrl, curTab: Tab) {
-  const curTitle = i18n(curTab.title)
+  const defaultTitle = i18n(curTab.title)
   let children: Mithril.Children
   let key: string
   if (curTab.id === 'moves') {
     const op = renderOpening(ctrl)
-    children = [op || curTitle]
+    children = [op || defaultTitle]
     key = op ? 'opening' : curTab.id
   }
   else if (curTab.id === 'ceval') {
     children = [
-      h('span', curTitle),
+      h('span', defaultTitle),
       ctrl.ceval.isSearching() ? h('div.ceval-spinner', 'analyzing ', h('span.fa.fa-spinner.fa-pulse')) : null
     ]
     key = ctrl.ceval.isSearching() ? 'searching-ceval' : curTab.id
@@ -134,27 +165,15 @@ function renderTabTitle(ctrl: AnalyseCtrl, curTab: Tab) {
     key = curTab.id
   }
   else {
-    children = [curTitle]
+    children = [defaultTitle]
     key = curTab.id
   }
 
   return h.fragment({ key }, children)
 }
 
-function renderCheckCount(whitePov: boolean, checkCount: { white: number, black: number }) {
-  const w = h('span.color-icon.white', '+' + checkCount.black)
-  const b = h('span.color-icon.black', '+' + checkCount.white)
-  return h('div.analyse-checkCount', whitePov ? [w, b] : [b, w])
-}
-
 function renderReplay(ctrl: AnalyseCtrl) {
-  const checkCount = ctrl.node.checkCount
-  const showFb = ctrl.node.clock || checkCount
   return h('div.analyse-replayWrapper', [
-    showFb ? h('div.analyse-fixedBar', [
-      h(Clocks, { ctrl }),
-      checkCount ? renderCheckCount(ctrl.bottomColor() === 'white', checkCount) : null
-    ]) : null,
     h(Replay, { ctrl })
   ])
 }
@@ -163,11 +182,13 @@ const TabsContentRendererMap: { [id: string]: (ctrl: AnalyseCtrl) => Mithril.Bas
   infos: renderGameInfos,
   moves: renderReplay,
   explorer: renderExplorer,
-  analysis: renderGameAnalysis,
-  ceval: renderCeval
+  analysis: renderAnalysis,
+  ceval: renderCeval,
+  pgnTags: renderPgnTags,
+  comments: renderComments,
 }
 
-function renderAnalyseTable(ctrl: AnalyseCtrl, availTabs: Tab[], isPortrait: boolean) {
+function renderAnalyseTable(ctrl: AnalyseCtrl, availTabs: ReadonlyArray<Tab>, isPortrait: boolean) {
 
   const tabsContent = availTabs.map(t =>
     TabsContentRendererMap[t.id]

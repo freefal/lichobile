@@ -1,17 +1,19 @@
 import * as h from 'mithril/hyperscript'
-import { flatten, noNull } from '../../../utils'
 import * as chessFormat from '../../../utils/chessFormat'
+import gameStatusApi from '../../../lichess/status'
+import { findTag, gameResult } from '../../../lichess/interfaces/study'
 import Board, { Bounds } from '../../shared/Board'
 import { Shape } from '../../shared/BoardBrush'
 import * as treeOps from '../../shared/tree/ops'
 
+import Clock from './Clock'
 import { Tab } from '../tabs'
 import AnalyseCtrl from '../AnalyseCtrl'
 
 export default function renderBoard(
   ctrl: AnalyseCtrl,
   bounds: Bounds,
-  availTabs: Tab[]
+  availTabs: ReadonlyArray<Tab>
 ) {
   const curTab = ctrl.currentTab(availTabs)
   const player = ctrl.data.game.player
@@ -26,7 +28,7 @@ export default function renderBoard(
       ceval && ceval.best ? moveOrDropShape(ceval.best, 'paleBlue', player) :
       []
   }
-  const pastBestShape = !ctrl.retro && rEval && rEval.best ?
+  const pastBestShape: Shape[] = !ctrl.retro && rEval && rEval.best ?
     moveOrDropShape(rEval.best, 'paleGreen', player) : []
 
   const nextUci = curTab.id === 'explorer' && ctrl.node && treeOps.withMainlineChild(ctrl.node, n => n.uci)
@@ -38,16 +40,61 @@ export default function renderBoard(
   const badMoveShape: Shape[] = badNode && badNode.uci ?
     moveOrDropShape(badNode.uci, 'paleRed', player) : []
 
-  const shapes: Shape[] = flatten([nextMoveShape, pastBestShape, curBestShape, badMoveShape].filter(noNull))
+  const shapes = [
+    ...nextMoveShape, ...pastBestShape, ...curBestShape, ...badMoveShape
+  ]
 
-  return h(Board, {
+  return h('div.analyse-boardWrapper', {
     key: ctrl.settings.s.smallBoard ? 'board-small' : 'board-full',
-    variant: ctrl.data.game.variant.key,
-    chessground: ctrl.chessground,
-    bounds,
-    shapes,
-    wrapperClasses: ctrl.settings.s.smallBoard ? 'halfsize' : ''
-  })
+  }, [
+    playerBar(ctrl, ctrl.topColor()),
+    h(Board, {
+      variant: ctrl.data.game.variant.key,
+      chessground: ctrl.chessground,
+      bounds,
+      shapes,
+      clearableShapes: ctrl.node.shapes,
+      wrapperClasses: ctrl.settings.s.smallBoard ? 'halfsize' : '',
+      canClearShapes: true,
+    }),
+    playerBar(ctrl, ctrl.bottomColor()),
+  ])
+}
+
+export function playerBar(ctrl: AnalyseCtrl, color: Color) {
+  const pName = ctrl.playerName(color)
+  if (pName === 'Anonymous') return null
+
+  const study = ctrl.study && ctrl.study.data
+  let title, elo, result: string | undefined
+  if (study) {
+    title = findTag(study, `${color}title`)
+    elo = findTag(study, `${color}elo`)
+    result = gameResult(study, color === 'white')
+  } else if (gameStatusApi.finished(ctrl.data)) {
+    const winner = ctrl.data.game.winner
+    result = winner === undefined ? '½' : winner === color ? '1' : '0'
+  }
+  const checkCount = ctrl.node.checkCount
+  const showRight = ctrl.node.clock || checkCount
+  return h('div.analyse-player_bar', {
+    className: ctrl.settings.s.smallBoard ? 'halfsize' : ''
+  }, [
+    h('div.info', [
+      result ? h('span.result', result) : null,
+      h('span.name', (title ? title + ' ' : '') + pName + (elo ? ` (${elo})` : '')),
+    ]),
+    showRight ? h('div.player_bar_clock', [
+      h(Clock, { ctrl, color }),
+      checkCount ? renderCheckCount(ctrl.bottomColor() === 'white', checkCount) : null
+    ]) : null,
+  ])
+}
+
+function renderCheckCount(whitePov: boolean, checkCount: { white: number, black: number }) {
+  const w = h('span.color-icon.white', '+' + checkCount.black)
+  const b = h('span.color-icon.black', '+' + checkCount.white)
+  return h('div.analyse-checkCount', whitePov ? [w, b] : [b, w])
 }
 
 function moveOrDropShape(uci: string, brush: string, player: Color): Shape[] {

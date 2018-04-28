@@ -1,8 +1,41 @@
-bglightEven = darken(themeBgLight, 5%)
-
 .view-container.light
   main
     color textLightBg
+
+  .main_header
+    color textLightBg
+    background-color themeBgLightHeader
+    border-bottom 1px solid darken(themeBgLightHeader, 5%)
+    &.board
+      border-bottom none
+
+  .subHeader
+    margin-top -1px
+    background-color themeBgLightHeader
+    border-bottom 1px solid darken(themeBgLightHeader, 5%)
+
+  .main_header_button
+    &.active
+      background themeBgLightActive
+
+  .back_button
+    > button.active
+      background themeBgLightActive
+
+  .main_footer
+    border-top 1px solid borderLightGray
+
+  .header-subTitle
+    color rgba(textLightBg, 0.8)
+
+  .chip, .main_header.board .chip
+    color themeBgLightHeader
+    border-color themeBgLightHeader
+    background-color goldDark
+
+  .main_header-selector
+    color lighten(textLightBg, 5%)
+
 
   #page
     background themeBgLight
@@ -43,14 +76,11 @@ bglightEven = darken(themeBgLight, 5%)
         color #fff
 
   .list_item
-    border-bottom-color #ddd
+    border-bottom-color themeBgLightBorder
     &.even
       background-color bglightEven
     &.active
       background-color themeBgLightActive
-
-  .ranking
-    border-bottom-color borderLightGray
 
   .playTable
     color textDarkGray
@@ -153,6 +183,13 @@ bglightEven = darken(themeBgLight, 5%)
     > .modal_content
       color textLightBg
       background-color themeBgLight
+
+  .analyse-player_bar
+    color rgba(textLightBg, 0.7)
+    > .info
+      > .result
+        border 0
+        // border-color borderLightGray
 
   .color-icon
     &.white

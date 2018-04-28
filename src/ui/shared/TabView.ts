@@ -1,6 +1,7 @@
-import * as h from 'mithril/hyperscript'
-import { EDGE_SLIDE_THRESHOLD } from '../menu/OpenSlideHandler'
 import * as Hammer from 'hammerjs'
+import * as h from 'mithril/hyperscript'
+
+import { EDGE_SLIDE_THRESHOLD } from './sideMenu'
 import { viewportDim, findParentBySelector } from '../helper'
 
 
@@ -69,8 +70,9 @@ export default {
       className: attrs.className
     }, attrs.content.map((_: any, index: number) =>
       h('div.tab-content', {
-        'data-index': index
-      }, h(Tab, { index, ...attrs }))
+        'data-index': index,
+        className: curIndex === index ? 'current' : '',
+      }, curIndex === index ? h(Tab, { index, ...attrs }) : null)
     ))
   }
 } as Mithril.Component<Attrs, State>

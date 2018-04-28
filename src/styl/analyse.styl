@@ -14,6 +14,9 @@
   flex 1 1 auto
   display flex
 
+.analyse-boardWrapper
+  align-self center
+
 .analyse-table
   position relative
 
@@ -42,13 +45,27 @@
     > div
       overflow hidden
       text-overflow ellipsis
-  > .tabs-navigation
-    background inherit
-    flex 0 0 auto
+
+.tabs-navigation.analyse
+  background inherit
+  flex 0 0 auto
+  height 25px
+  > .tab-button
+    position relative
+    padding 0 0.5em
     height 25px
-    > .tab-button
-      padding 0 0.5em
-      height 25px
+    > .chip
+      height 11px
+      width 12px
+      font-size 10px
+      top 3px
+      right 1px
+      line-height inherit
+      background darken(gold, 25%)
+      color #fff
+      border 0
+      border-radius 3px
+      // text-shadow 0 1px 0 #000
 
 .analyse-tableWrapper
   margin-top 2px
@@ -69,6 +86,7 @@
   flex 1 1 auto
   > .tab-content
     > div
+      flex-grow 1
       width 100%
     @media only screen and (orientation: landscape)
       width 'calc(100vw - 100vh + %s)' % headerHeight
@@ -114,7 +132,7 @@
 .analyse-replay
   flex 1 1 auto
   position relative
-  font-size 0.9rem
+  font-size 0.93rem
   white-space normal
   line-height 1.05em
   &.displayPieces
@@ -144,6 +162,7 @@
 index
   color rgba(textDarkBg, 50%)
   margin-right 0.2em
+  font-weight normal
 
 move
   display inline-block
@@ -151,10 +170,10 @@ move
   overflow hidden
   white-space nowrap
   border-radius 3px
+  font-weight bold
   &.current
     color #fff
     background rgba(blue, 0.8)
-    font-weight normal
     > index
       color #fff
   &.active
@@ -211,8 +230,8 @@ inline
 
 comment
   display inline
-  font-size 0.8em
-  color rgba(textDarkBg, 0.8)
+  font-size 0.9em
+  color rgba(textDarkBg, 0.7)
   margin 0 0.2em 0 0.1em
   word-wrap break-word
   vertical-align 45%
@@ -259,24 +278,39 @@ comment
     height 100%
 
 .view-container.light
+  .tabs-navigation.analyse
+    > .tab-button
+      > .chip
+        background blue
+
   .analyse-fixedBar
     background-color bglight
 
   .analyse-header
-    background-color #444
+    background-color inherit
+    border-bottom 1px solid borderLightGray
+    .tabIndicator
+      background-color blue
+    .tab-button
+      color textGray
+      &.selected
+        color blue
+
+  .analyse_actions_bar
+    border-top 1px solid borderLightGray
 
   .analyse-tabsContent
     background #fff
 
   .ceval-curEval
-    background #3c3c3c
-    color headerBgDarkColor
+    background-color inherit
+    border-right 1px solid borderLightGray
 
-  .analyse-tabs
-    color darken(headerBgDarkColor, 5%)
+  inline
+    color rgba(textLightBg, 0.8)
 
-  inline, comment
-    color rgba(textLightBg, 0.5)
+  comment
+    color rgba(textLightBg, 0.7)
 
   index
     color rgba(textLightBg, 0.5)
@@ -313,9 +347,8 @@ comment
   .analyse-tabsContent
     background-color transpBlack05
 
-  .analyse-tabs
-    > .tabs-navigation
-      background-color initial
+  .tabs-navigation.analyse
+    background-color initial
 
   .analyse_variant_selector.select_input
     > label:after

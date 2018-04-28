@@ -28,10 +28,10 @@ export const LoadingBoard = {
 }
 
 export function menuButton() {
-  return (
-    <button key="main-menu" className="fa fa-navicon main_header_button menu_button" oncreate={helper.ontap(menu.toggle)}>
-    </button>
-  )
+  return h('button.fa.fa-navicon.main_header_button.menu_button', {
+    key: 'main-menu',
+    oncreate: helper.ontap(menu.mainMenuCtrl.toggle)
+  })
 }
 
 export function backButton(title?: Mithril.BaseNode | string): Mithril.Children {
@@ -167,6 +167,22 @@ export function connectingHeader(title?: string) {
     </nav>
   )
 }
+
+export function connectingDropShadowHeader(title?: string) {
+  return [
+    h('nav', [
+      menuButton(),
+      h('div.main_header_title.reconnecting', {
+        className: title ? 'withTitle' : '',
+        key: 'connecting-title',
+      }),
+      title ? h('div.main_header_title', { key: 'title' }, title) : null,
+      headerBtns()
+    ]),
+    h('div.main_header_drop_shadow')
+  ]
+}
+
 
 export function loadingBackbutton(title?: string) {
   return (

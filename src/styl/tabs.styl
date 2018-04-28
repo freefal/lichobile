@@ -8,7 +8,6 @@
   flex-flow row nowrap
   height 48px
   position relative
-  background headerBgDark
 
 .tab-button
   flex 0 1 auto
@@ -46,3 +45,17 @@
   width 100vw
   display flex
   flex-flow column nowrap
+  visibility hidden
+  &.current
+    visibility visible
+
+
+.view-container.light
+  .tab-button
+    color inherit
+    &.active
+      background-color darken(themeBgLight, 5%)
+    &.selected
+      color goldDark
+  .tabIndicator
+    background-color goldDark

@@ -1,4 +1,4 @@
-#menu-close-overlay
+.menu-backdrop
   height 100%
   width 100%
   z-index 99
@@ -6,11 +6,12 @@
   opacity 0
   visibility hidden
   position absolute
+  will-change opacity
   top 0
   left 0
 
 #side_menu
-  background #222
+  background #373737
   color #DFDFDF
   position absolute
   visibility hidden
@@ -27,8 +28,8 @@
   @media only screen and (min-width 960px)
     width 35%
   overflow hidden
+  will-change transform
   z-index 100
-  box-shadow: 2px 0px 3px rgba(0, 0, 0, 0.3)
   transform translate3d(-100%, 0,0)
   section
     padding 0 15px
@@ -42,19 +43,22 @@
   width: 60%;
   padding: 0.8em 0.25em;
   margin: 15px auto
-  border: 1px solid #323232;
-  background: #111
+  border: 1px solid #505050
+  background: #2e2e2e
   font-weight: bold;
   border-radius: 2px;
 
 .side_menu_header
+  flex 0 0 auto
   display flex
   flex-flow column nowrap
   justify-content center
-  background #1a1a1a
+  background #2e2e2e
   color darken(#fff, 8%)
-  padding 1em 0
+  padding-top 15px
   min-height 65px
+  > div:last-child
+    padding-bottom 15px
   > .kiddo
     display flex
     justify-content center
@@ -70,36 +74,34 @@
     display flex
     width 100%
     justify-content flex-start
-    position relative
     padding-left 15px
 
+.side_menu_scroller
+  flex 0 1 auto
+
 .menu-toggleButton
-  background #282828
+  background #2e2e2e
   text-align left
   padding-left 15px
   line-height 40px
-  &.side_link
-    margin-top 0
+  &.side_link:last-child
+    margin 0
   &.active
-    background lighten(#353535, 8%)
+    background lighten(#2e2e2e, 3%)
 
-.pingServerLed
+.pingServer
   margin-left 15px
-  margin-right 50px
-  > .pingServer
-    display flex
-    align-items center
-    color darken(#fff, 40%)
-    white-space nowrap
-    font-size 0.75em
-    text-align left
-    > signal
-      margin-right 1em
-    .pingKey
-      display inline-block
-      width 45px
-    .pingValue
-      font-family Cousine
+  display flex
+  align-items center
+  color darken(#fff, 40%)
+  font-size 0.75em
+  > signal
+    margin-right 1em
+  .pingKey
+    display inline-block
+    width 45px
+  .pingValue
+    font-family Cousine
 
 .side_links
   > .hr
@@ -108,11 +110,9 @@
 
 .side_link
   color #bbb
-  padding 10px 0 10px 15px
-  margin 5px 0
-  font-weight bold
-  font-size 0.9em
+  padding 15px 0 15px 15px
   line-height 19px
+  letter-spacing -0.5px
   > span
     color darken(textLightGray, 15%)
     width 17px
@@ -125,15 +125,10 @@
       width 18px
       height 18px
       background url('../../images/icons/game_icon_menu.svg') no-repeat
-  > .highlight
-    color gold
-    font-weight bold
-  &.emptyIcon
-    padding-left 49px
   &:last-child
     margin-bottom 10px
   &.active
-    background lighten(#222, 5%)
+    background lighten(#373737, 3%)
 
 .sep_link
   color #8a8a8a

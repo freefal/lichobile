@@ -11,14 +11,17 @@ import vibrate from '../../vibrate'
 import sound from '../../sound'
 import socket from '../../socket'
 import { openingSensibleVariants } from '../../lichess/variant'
+import { playerName as gamePlayerName } from '../../lichess/player'
 import * as gameApi from '../../lichess/game'
 import { AnalyseData, AnalyseDataWithTree, isOnlineAnalyseData } from '../../lichess/interfaces/analyse'
+import { Study, findTag } from '../../lichess/interfaces/study'
 import { Opening } from '../../lichess/interfaces/game'
 import settings from '../../settings'
 import { oppositeColor, hasNetwork, noop } from '../../utils'
 import promotion from '../shared/offlineRound/promotion'
 import continuePopup, { Controller as ContinuePopupController } from '../shared/continuePopup'
 import { NotesCtrl } from '../shared/round/notes'
+
 import * as util from './util'
 import CevalCtrl from './ceval/CevalCtrl'
 import RetroCtrl, { IRetroCtrl } from './retrospect/RetroCtrl'
@@ -26,13 +29,14 @@ import { ICevalCtrl } from './ceval/interfaces'
 import crazyValid from './crazy/crazyValid'
 import ExplorerCtrl from './explorer/ExplorerCtrl'
 import { IExplorerCtrl } from './explorer/interfaces'
-import menu, { IMainMenuCtrl } from './menu'
+import analyseMenu, { IMainMenuCtrl } from './menu'
 import analyseSettings, { ISettingsCtrl } from './analyseSettings'
 import ground from './ground'
 import socketHandler from './analyseSocketHandler'
 import { make as makeEvalCache, EvalCache } from './evalCache'
 import { Source } from './interfaces'
 import * as tabs from './tabs'
+import StudyCtrl from './study/StudyCtrl'
 
 export default class AnalyseCtrl {
   data: AnalyseData
@@ -49,6 +53,7 @@ export default class AnalyseCtrl {
   explorer: IExplorerCtrl
   tree: TreeWrapper
   evalCache: EvalCache
+  study?: StudyCtrl
 
   // current tree state, cursor, and denormalized node lists
   path!: Tree.Path
@@ -80,6 +85,7 @@ export default class AnalyseCtrl {
 
   constructor(
     data: AnalyseData,
+    studyData: Study | undefined,
     source: Source,
     orientation: Color,
     shouldGoBack: boolean,
@@ -92,8 +98,11 @@ export default class AnalyseCtrl {
     this.synthetic = util.isSynthetic(data)
     this.ongoing = !this.synthetic && gameApi.playable(data)
     this.initialPath = treePath.root
+
+    this.study = studyData !== undefined ? new StudyCtrl(studyData, this) : undefined
+
     this._currentTabIndex = tab !== undefined ? tab :
-      this.synthetic ? 0 : 1
+      (!this.study || this.study.data.chapter.tags.length === 0) && this.synthetic ? 0 : 1
 
     if (settings.analyse.supportedVariants.indexOf(this.data.game.variant.key) === -1) {
       window.plugins.toast.show(`Analysis board does not support ${this.data.game.variant.name} variant.`, 'short', 'center')
@@ -107,10 +116,11 @@ export default class AnalyseCtrl {
       receive: this.onCevalMsg
     })
 
+
     this.tree = makeTree(treeOps.reconstruct(this.data.treeParts))
 
     this.settings = analyseSettings.controller(this)
-    this.menu = menu.controller(this)
+    this.menu = analyseMenu.controller(this)
     this.continuePopup = continuePopup.controller()
 
     this.notes = session.isConnected() && this.data.game.speed === 'correspondence' ? new NotesCtrl(this.data) : null
@@ -119,7 +129,7 @@ export default class AnalyseCtrl {
 
     this.ceval = CevalCtrl(
       this.data.game.variant.key,
-      this.allowCeval(),
+      this.isCevalAllowed(),
       this.onCevalMsg,
       {
         multiPv: this.settings.s.cevalMultiPvs,
@@ -128,10 +138,11 @@ export default class AnalyseCtrl {
       }
     )
 
-    this.explorer = ExplorerCtrl(this)
+    const explorerAllowed = !this.study || this.study.data.chapter.features.explorer
+    this.explorer = ExplorerCtrl(this, explorerAllowed)
     this.debouncedExplorerSetStep = debounce(this.explorer.setStep, this.data.pref.animationDuration + 50)
 
-    const initPly = ply || this.tree.lastPly()
+    const initPly = ply !== undefined ? ply : this.tree.lastPly()
 
     this.gamePath = (this.synthetic || this.ongoing) ? undefined :
       treePath.fromNodeList(treeOps.mainlineNodeList(this.tree.root))
@@ -145,7 +156,9 @@ export default class AnalyseCtrl {
     this.shouldGoBack = shouldGoBack
     this.formattedDate = gameMoment.format('L LT')
 
-    if (
+    if (this.study) {
+      this.study.createSocket()
+    } else if (
       !this.data.analysis && session.isConnected() &&
       isOnlineAnalyseData(this.data) && gameApi.analysable(this.data)
     ) {
@@ -172,6 +185,15 @@ export default class AnalyseCtrl {
     return this.data.game.player
   }
 
+  playerName(color: Color): string {
+    const p = gameApi.getPlayer(this.data, color)
+    return this.study ? findTag(this.study.data, color) || 'Anonymous' : gamePlayerName(p)
+  }
+
+  topColor(): Color {
+    return oppositeColor(this.bottomColor())
+  }
+
   bottomColor(): Color {
     return this.settings.s.flip ? oppositeColor(this.data.orientation) : this.data.orientation
   }
@@ -190,25 +212,30 @@ export default class AnalyseCtrl {
     }
   }
 
-  availableTabs = (): tabs.Tab[] => {
-    let val = tabs.defaults
+  availableTabs = (): ReadonlyArray<tabs.Tab> => {
+    let val: ReadonlyArray<tabs.Tab> = [tabs.moves]
 
-    if (this.synthetic) val = val.filter(t => t.id !== 'infos')
-    if (!this.retro && this.ceval.enabled()) val = val.concat([tabs.ceval])
-    if (isOnlineAnalyseData(this.data) && gameApi.analysable(this.data)) {
-      val = val.concat([tabs.charts])
+    if (this.study && this.study.data.chapter.tags.length > 0) val = [tabs.pgnTags, ...val]
+    if (!this.synthetic) val = [tabs.gameInfos, ...val]
+    if (this.study) val = [...val, tabs.comments]
+    if (!this.retro && this.ceval.enabled()) val = [...val, tabs.ceval]
+    // TODO enable study analysis request when socket is implemented
+    if (this.study && this.data.analysis ||
+      (isOnlineAnalyseData(this.data) && gameApi.analysable(this.data))
+    ) {
+      val = [...val, tabs.charts]
     }
-    if (hasNetwork()) val = val.concat([tabs.explorer])
+    if (hasNetwork() && this.explorer.allowed) val = [...val, tabs.explorer]
 
     return val
   }
 
-  currentTabIndex = (avail: tabs.Tab[]): number => {
+  currentTabIndex = (avail: ReadonlyArray<tabs.Tab>): number => {
     if (this._currentTabIndex > avail.length - 1) return avail.length - 1
     else return this._currentTabIndex
   }
 
-  currentTab = (avail: tabs.Tab[]): tabs.Tab => {
+  currentTab = (avail: ReadonlyArray<tabs.Tab>): tabs.Tab => {
     return avail[this.currentTabIndex(avail)]
   }
 
@@ -554,12 +581,18 @@ export default class AnalyseCtrl {
     redraw()
   }
 
-  private allowCeval() {
-    return (
-      this.source === 'offline' || util.isSynthetic(this.data) || !gameApi.playable(this.data)
-    ) &&
-      gameApi.analysableVariants
-      .indexOf(this.data.game.variant.key) !== -1
+  private isCevalAllowed() {
+    const study = this.study && this.study.data
+
+    if (!gameApi.analysableVariants.includes(this.data.game.variant.key)) {
+      return false
+    }
+
+    if (study && !(study.chapter.features.computer || study.chapter.practice)) {
+      return false
+    }
+
+    return this.source === 'offline' || util.isSynthetic(this.data) || !gameApi.playable(this.data)
   }
 
   private onCevalMsg = (path: string, ceval?: Tree.ClientEval) => {

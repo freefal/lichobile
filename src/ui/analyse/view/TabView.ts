@@ -1,6 +1,6 @@
 import * as h from 'mithril/hyperscript'
-import { EDGE_SLIDE_THRESHOLD } from '../../menu/OpenSlideHandler'
 import * as Hammer from 'hammerjs'
+import { EDGE_SLIDE_THRESHOLD } from '../../shared/sideMenu'
 import { viewportDim, findParentBySelector, headerHeight } from '../../helper'
 
 import AnalyseCtrl from '../AnalyseCtrl'
@@ -84,7 +84,8 @@ export default {
       className: attrs.className
     }, attrs.contentRenderers.map((_: any, index: number) =>
       h('div.tab-content', {
-        'data-index': index
+        'data-index': index,
+        className: attrs.selectedIndex === index ? 'current' : '',
       },  attrs.selectedIndex === index ? attrs.contentRenderers[index](attrs.ctrl) : null)
     ))
   }

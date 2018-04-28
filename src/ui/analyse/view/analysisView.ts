@@ -1,5 +1,6 @@
 import * as h from 'mithril/hyperscript'
 import i18n  from '../../../i18n'
+import socket from '../../../socket'
 import { handleXhrError, shallowEqual } from '../../../utils'
 import redraw from '../../../utils/redraw'
 import { batchRequestAnimationFrame } from '../../../utils/batchRAF'
@@ -7,6 +8,7 @@ import * as gameApi from '../../../lichess/game'
 import spinner from '../../../spinner'
 import { playerName } from '../../../lichess/player'
 import { AnalyseData, RemoteEvalSummary } from '../../../lichess/interfaces/analyse'
+import { Study, findTag } from '../../../lichess/interfaces/study'
 import * as helper from '../../helper'
 
 import { requestComputerAnalysis } from '../analyseXhr'
@@ -14,18 +16,19 @@ import AnalyseCtrl from '../AnalyseCtrl'
 import drawAcplChart from '../charts/acpl'
 import drawMoveTimesChart from '../charts/moveTimes'
 
-export default function renderGameAnalysis(ctrl: AnalyseCtrl): Mithril.BaseNode {
+export default function renderAnalysis(ctrl: AnalyseCtrl): Mithril.BaseNode {
   const isPortrait = helper.isPortrait()
   const vd = helper.viewportDim()
   const d = ctrl.data
 
-  return h('div.analyse-gameAnalysis.native_scroller',
-    d.analysis ? renderAnalysis(ctrl, vd, isPortrait) : renderAnalysisRequest(ctrl),
+  return h('div.analyse-gameAnalysis.native_scroller', [
+    d.analysis ? renderAnalysisGraph(ctrl, vd, isPortrait) :
+      ctrl.study ? renderStudyAnalysisRequest(ctrl) : renderGameAnalysisRequest(ctrl),
     d.game.moveCentis ? renderMoveTimes(ctrl, d.game.moveCentis, vd, isPortrait) : null
-  )
+  ])
 }
 
-function renderAnalysis(ctrl: AnalyseCtrl, vd: helper.ViewportDim, isPortrait: boolean) {
+function renderAnalysisGraph(ctrl: AnalyseCtrl, vd: helper.ViewportDim, isPortrait: boolean) {
   return h('div.analyse-computerAnalysis', {
     key: 'analysis'
   }, [
@@ -48,25 +51,34 @@ function renderAnalysis(ctrl: AnalyseCtrl, vd: helper.ViewportDim, isPortrait: b
         })
       }
     }),
-    h(AcplSummary, { d: ctrl.data, analysis: ctrl.data.analysis! })
+    h(AcplSummary, {
+      d: ctrl.data,
+      analysis: ctrl.data.analysis!,
+      study: ctrl.study && ctrl.study.data
+    })
   ])
 }
 
-const AcplSummary: Mithril.Component<{ d: AnalyseData, analysis: RemoteEvalSummary }, {}> = {
+const AcplSummary: Mithril.Component<{
+  d: AnalyseData
+  analysis: RemoteEvalSummary
+  study?: Study
+}, {}> = {
   onbeforeupdate({ attrs }, { attrs: oldattrs }) {
     return !shallowEqual(attrs.analysis, oldattrs.analysis)
   },
 
   view({ attrs }) {
-    const { d, analysis } = attrs
+    const { d, analysis, study } = attrs
 
     return h('div.analyse-evalSummary', ['white', 'black'].map((color: Color) => {
       const p = gameApi.getPlayer(d, color)
+      const pName = study ? findTag(study, color) || 'Anonymous' : playerName(p)
 
       return h('table', [
         h('thead', h('tr', [
           h('th', h('span.color-icon.' + color)),
-          h('td', [playerName(p), p ? helper.renderRatingDiff(p) : null])
+          h('td', [pName, p ? helper.renderRatingDiff(p) : null])
         ])),
         h('tbody', [
           advices.map(a => {
@@ -86,8 +98,8 @@ const AcplSummary: Mithril.Component<{ d: AnalyseData, analysis: RemoteEvalSumma
   }
 }
 
-function renderAnalysisRequest(ctrl: AnalyseCtrl) {
-  return h('div.analyse-computerAnalysis', {
+function renderGameAnalysisRequest(ctrl: AnalyseCtrl) {
+  return h('div.analyse-computerAnalysis.request', {
     key: 'request-analysis'
   }, [
     ctrl.analysisProgress ? h('div.analyse-requestProgress', [
@@ -104,6 +116,31 @@ function renderAnalysisRequest(ctrl: AnalyseCtrl) {
       })
     }, [i18n('requestAComputerAnalysis')])
   ])
+}
+
+function renderStudyAnalysisRequest(ctrl: AnalyseCtrl) {
+  // TODO enable request button when study socket implemented
+  return h('div.analyse-computerAnalysis.request', {
+    key: 'request-analysis'
+  }, ctrl.mainline.length < 5 ? h('p', 'The study is too short to be analysed.') :
+      !ctrl.study!.canContribute() ? h('p', 'Only the study contributors can request a computer analysis') : [
+        h('p', [
+          'Get a full server-side computer analysis of the main line.',
+          h('br'),
+          'Make sure the chapter is complete, for you can only request analysis once.'
+        ]),
+        ctrl.analysisProgress ? h('div.analyse-requestProgress', [
+          h('span', 'Analysis in progress'),
+          spinner.getVdom('monochrome')
+        ]) : h('button.fatButton[disabled]', {
+          oncreate: helper.ontapXY(() => {
+            socket.send('requestAnalysis', ctrl.study!.data.chapter.id)
+            ctrl.analysisProgress = true
+            redraw()
+          })
+        }, [i18n('requestAComputerAnalysis')])
+    ]
+  )
 }
 
 function renderMoveTimes(ctrl: AnalyseCtrl, moveCentis: number[], vd: helper.ViewportDim, isPortrait: boolean) {
