@@ -34,5 +34,5 @@ install:
   - npm install
   - cordova platform add android
 script:
-  - ./scripts/travis_build.sh
+  - sh scripts/travis_build.sh
   - test -e platforms/android/app/build/outputs/apk/debug/app-debug.apk 
