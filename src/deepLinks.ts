@@ -89,8 +89,10 @@ function handleTrainingProblem (eventData: UniversalLinks.EventData) {
 }
 
 function handleOther (eventData: UniversalLinks.EventData) {
+  console.log(eventData.path)
   const pieces = eventData.path.split('/')
   if (eventData.path.search('^\/([a-zA-Z0-9]{8})$') !== -1) {
+    console.log('challenge')
     getChallenge(pieces[1])
     .then(() =>
       router.set('/challenge/' + pieces[1])
@@ -98,12 +100,15 @@ function handleOther (eventData: UniversalLinks.EventData) {
     .catch(() => router.set('/game/' + pieces[1]))
   }
   else if (eventData.path.search('^\/([a-zA-Z0-9]{8})+\/+(white|black)$') !== -1) {
-    router.set('/game/' + pieces[1] + '/' + pieces[2])
+    console.log('game with color')
+    router.set('/game/' + pieces[1] + '?color=${pieces[2]}')
   }
   else if (eventData.path.search('^\/([a-zA-Z0-9]{12})$') !== -1) {
+    console.log('game')
     router.set('/game/' + pieces[1])
   }
   else {
+    console.log('blank')
     window.open(eventData.url, '_blank', 'location=no')
   }
 }
