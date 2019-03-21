@@ -24,6 +24,7 @@ interface Attrs {
   id: string
   color?: Color
   goingBack?: string
+  ply?: string
 }
 
 interface State {
@@ -64,7 +65,7 @@ export default {
           const elapsed = performance.now() - now
 
           setTimeout(() => {
-            this.round = new OnlineRound(!!attrs.goingBack, attrs.id, data)
+            this.round = new OnlineRound(!!attrs.goingBack, attrs.id, data, false, undefined, undefined, undefined, undefined, (attrs.ply && !isNaN(Number(attrs.ply))) ? Number(attrs.ply) : undefined)
           }, Math.max(400 - elapsed, 0))
 
           gamesMenu.resetLastJoined()

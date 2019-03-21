@@ -90,15 +90,16 @@ function handleTrainingProblem (eventData: UniversalLinks.EventData) {
 
 function handleOther (eventData: UniversalLinks.EventData) {
   const pieces = eventData.path.split('/')
+  const ply = eventData.hash
   if (eventData.path.search('^\/([a-zA-Z0-9]{8})$') !== -1) {
     getChallenge(pieces[1])
     .then(() =>
       router.set('/challenge/' + pieces[1])
     )
-    .catch(() => router.set('/game/' + pieces[1]))
+    .catch(() => router.set('/game/' + pieces[1] + (ply ? `?ply=${ply}` : '')))
   }
   else if (eventData.path.search('^\/([a-zA-Z0-9]{8})+\/+(white|black)$') !== -1) {
-    router.set('/game/' + pieces[1] + `?color=${pieces[2]}`)
+    router.set('/game/' + pieces[1] + `?color=${pieces[2]}` + (ply ? `&ply=${ply}` : ''))
   }
   else if (eventData.path.search('^\/([a-zA-Z0-9]{12})$') !== -1) {
     router.set('/game/' + pieces[1])

@@ -81,7 +81,8 @@ export default class OnlineRound implements OnlineRoundInterface {
     onFeatured?: () => void,
     onTVChannelChange?: () => void,
     userTv?: string,
-    onUserTVRedirect?: () => void
+    onUserTVRedirect?: () => void,
+    ply?: number
   ) {
     this.goingBack = goingBack
     this.id = id
@@ -95,7 +96,7 @@ export default class OnlineRound implements OnlineRoundInterface {
     this.blur = false
 
     this.vm = {
-      ply: this.lastPly(),
+      ply: (ply && ply >= 0 && ply <= this.lastPly()) ? ply : this.lastPly(),
       flip: flipped,
       miniUser: {
         player: {
