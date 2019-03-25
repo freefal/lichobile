@@ -73,6 +73,7 @@ function renderBody(ctrl: State) {
             t.key,
             selected,
             e => {
+              console.log('hello')
               const val = (e.target as HTMLInputElement).value
               const prevTheme = settings.general.theme.background()
               settings.general.theme.background(val)
@@ -83,10 +84,12 @@ function renderBody(ctrl: State) {
                 ctrl.loading = true
                 loadImage(val + '.' + t.ext, ctrl.onProgress)
                 .then(() => {
+                  console.log('loading success')
                   layout.onBackgroundChange(val)
                   ctrl.stopLoading()
                 })
                 .catch(() => {
+                  console.log('loading failure')
                   settings.general.theme.background(prevTheme)
                   ctrl.stopLoading()
                   handleError()
